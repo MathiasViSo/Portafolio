@@ -1,23 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Code, Mail, X, ExternalLink, Smartphone, Database, Server } from 'lucide-react';
+import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText } from 'lucide-react';
 import api from './api';
 import AdminPanel from './Admin';
 
-// --- CONFIGURACIÓN DE ANIMACIONES ---
-const fadeUp = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
-};
+// --- ANIMACIONES ---
+const fadeUp = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }};
+const staggerContainer = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } }};
 
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
-};
-
-// --- COMPONENTES MODULARES (Recibiendo 'perfil' como Prop) ---
-
+// --- COMPONENTES ---
 const Navbar = ({ perfil }) => (
   <nav className="fixed top-0 w-full z-50 bg-[#111318]/80 backdrop-blur-xl border-b border-[#00F0FF]/10 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
     <div className="flex justify-between items-center px-6 md:px-12 py-4 max-w-7xl mx-auto font-headline tracking-tighter">
@@ -25,10 +17,10 @@ const Navbar = ({ perfil }) => (
         {perfil?.nombre ? perfil.nombre.split('_')[0] : 'SISTEMAS'}
       </div>
       <div className="hidden md:flex items-center gap-8 text-sm">
-        <a className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-all duration-300 px-3 py-1 rounded" href="#home">Home</a>
-        <a className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-all duration-300 px-3 py-1 rounded" href="#skills">Stack</a>
-        <a className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-all duration-300 px-3 py-1 rounded" href="#projects">Engineered_Solutions</a>
-        <a className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-all duration-300 px-3 py-1 rounded" href="#contact">Contact</a>
+        <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#home">Home</a>
+        <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#skills">Stack</a>
+        <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#projects">Engineered_Solutions</a>
+        <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#contact">Contact</a>
       </div>
       <div className="flex items-center gap-4">
         <Link to="/admin" className="hidden md:block text-[10px] uppercase tracking-widest border border-outline-variant/30 px-3 py-1.5 text-on-surface-variant hover:text-primary-container hover:border-primary-container transition-all">
@@ -46,10 +38,7 @@ const Skills = () => (
       <h2 className="text-2xl font-headline font-bold text-on-surface tracking-[0.2em] uppercase">Technical_Stack</h2>
       <div className="w-20 h-1 bg-primary-container mt-4"></div>
     </div>
-    <motion.div 
-      initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={staggerContainer}
-      className="grid grid-cols-1 md:grid-cols-2 gap-6"
-    >
+    <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {[
         { name: 'Kotlin & Flutter', icon: <Smartphone size={24}/>, val: '95%', color: 'bg-primary-container', desc: 'Desarrollo móvil nativo y cruzado' },
         { name: 'Python & FastAPI', icon: <Terminal size={24}/>, val: '85%', color: 'bg-secondary', desc: 'Arquitectura Backend y APIs REST' },
@@ -99,26 +88,14 @@ const Contact = ({ perfil }) => (
               </a>
             </div>
           </div>
-          <div className="flex items-start gap-4">
-            <div className="mt-1.5 w-2 h-2 rounded-full bg-outline-variant"></div>
-            <div>
-              <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Location Context</p>
-              <p className="text-on-surface font-headline">Chiclayo, Perú // UTC-5</p>
-            </div>
-          </div>
         </div>
       </div>
-      
       <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="glass-panel p-10 rounded-xl relative">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary-container/30 to-transparent"></div>
         <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); window.location.href = `mailto:${perfil?.email || ''}`; }}>
           <div className="relative group">
             <label className="block text-[10px] uppercase tracking-[0.2em] text-on-surface-variant mb-2 font-mono">Identifier</label>
             <input required type="text" className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline" placeholder="E.G. UNIT_01" />
-          </div>
-          <div className="relative group">
-            <label className="block text-[10px] uppercase tracking-[0.2em] text-on-surface-variant mb-2 font-mono">Packet Source</label>
-            <input required type="email" className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline" placeholder="EMAIL@DOMAIN.SYS" />
           </div>
           <div className="relative group">
             <label className="block text-[10px] uppercase tracking-[0.2em] text-on-surface-variant mb-2 font-mono">Data Payload</label>
@@ -133,38 +110,53 @@ const Contact = ({ perfil }) => (
   </section>
 );
 
-// --- COMPONENTE PRINCIPAL ---
+// --- MAIN PORTFOLIO ---
 const Portfolio = () => {
   const [proyectos, setProyectos] = useState([]);
   const [proyectoActivo, setProyectoActivo] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filtroActivo, setFiltroActivo] = useState('ALL');
   const [perfil, setPerfil] = useState({
     nombre: 'MATHIAS_VILLAZÓN', titulo: 'SISTEMAS ENGINEER.', 
-    descripcion: 'Cargando perfil...', email: '', github_url: '', linkedin_url: ''
+    descripcion: 'Inicializando módulos de perfil...', email: '', github_url: '', linkedin_url: ''
   });
 
   useEffect(() => {
-    // 1. Cargar Datos
-    api.get('/proyectos').then(res => setProyectos(res.data)).catch(() => {});
-    api.get('/perfil').then(res => setPerfil(res.data)).catch(() => {});
+    Promise.all([
+      api.get('/proyectos').catch(() => ({ data: [] })),
+      api.get('/perfil').catch(() => ({ data: perfil }))
+    ]).then(([resProyectos, resPerfil]) => {
+      setProyectos(resProyectos.data);
+      if(resPerfil.data.nombre) setPerfil(resPerfil.data);
+      setTimeout(() => setIsLoading(false), 800); // Simulamos tiempo para mostrar el loader épico
+    });
 
-    // 2. Keep-Alive (Ping cada 10 min)
-    const keepAlive = setInterval(() => {
-      api.get('/proyectos').catch(() => {});
-    }, 600000);
+    const keepAlive = setInterval(() => api.get('/proyectos').catch(() => {}), 600000);
     return () => clearInterval(keepAlive);
   }, []);
+
+  const categorias = ['ALL', 'MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP'];
+  const proyectosFiltrados = filtroActivo === 'ALL' ? proyectos : proyectos.filter(p => p.categoria === filtroActivo);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center font-mono">
+        <div className="w-16 h-16 border-4 border-outline-variant border-t-primary-container rounded-full animate-spin mb-4"></div>
+        <p className="text-primary-container tracking-[0.3em] text-xs uppercase animate-pulse">Establishing_Connection...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background min-h-screen text-on-surface font-body selection:bg-primary-container selection:text-background relative overflow-hidden">
       <div className="fixed top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-primary-container/5 blur-[120px] pointer-events-none z-0"></div>
       <div className="fixed bottom-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-secondary/5 blur-[120px] pointer-events-none z-0"></div>
 
-      {/* Le pasamos el perfil al Navbar */}
       <Navbar perfil={perfil} />
       
       <main className="px-6 md:px-12 max-w-7xl mx-auto relative z-10">
         
-        {/* HERO DINÁMICO */}
+        {/* HERO */}
         <motion.section initial="hidden" animate="visible" variants={fadeUp} className="min-h-[90vh] flex flex-col md:flex-row items-center justify-between pt-20 gap-12" id="home">
           <div className="flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-4 mb-8">
@@ -180,9 +172,12 @@ const Portfolio = () => {
                 {perfil.descripcion}
               </p>
             </div>
-            <div className="flex flex-wrap gap-6 mt-12">
+            <div className="flex flex-wrap gap-4 mt-12">
               <a href="#projects" className="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
                 Ejecutar Portafolio
+              </a>
+              <a href="/Mathias_Villazon_CV.pdf" download className="px-8 py-4 bg-surface-container-highest border border-outline-variant/50 hover:border-secondary text-on-surface-variant hover:text-secondary font-headline font-bold text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2">
+                <FileText size={18} /> Download_CV
               </a>
               {perfil.github_url && (
                 <a href={perfil.github_url} target="_blank" rel="noreferrer" className="px-8 py-4 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2">
@@ -195,11 +190,7 @@ const Portfolio = () => {
           {perfil.imagen_url && (
             <div className="hidden md:block w-72 h-72 lg:w-96 lg:h-96 relative group mt-12 md:mt-0">
               <div className="absolute inset-0 bg-primary-container/20 rounded-full blur-3xl group-hover:bg-primary-container/30 transition-colors duration-500"></div>
-              <img 
-                src={perfil.imagen_url} 
-                alt={perfil.nombre} 
-                className="w-full h-full object-cover rounded-2xl border border-outline-variant/30 grayscale hover:grayscale-0 transition-all duration-500 relative z-10"
-              />
+              <img src={perfil.imagen_url} alt={perfil.nombre} className="w-full h-full object-cover rounded-2xl border border-outline-variant/30 grayscale hover:grayscale-0 transition-all duration-500 relative z-10" />
               <div className="absolute -top-4 -left-4 w-8 h-8 border-t-2 border-l-2 border-primary-container z-20"></div>
               <div className="absolute -bottom-4 -right-4 w-8 h-8 border-b-2 border-r-2 border-primary-container z-20"></div>
             </div>
@@ -208,63 +199,71 @@ const Portfolio = () => {
 
         <Skills />
         
-        {/* GALERÍA DE PROYECTOS */}
+        {/* PROJECTS (Con Filtros) */}
         <section className="py-24 border-t border-outline-variant/10" id="projects">
-          <div className="mb-16">
-            <h2 className="text-2xl font-headline font-bold text-on-surface tracking-[0.2em] uppercase">Engineered_Solutions</h2>
-            <div className="w-20 h-1 bg-primary-container mt-4"></div>
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
+            <div>
+              <h2 className="text-2xl font-headline font-bold text-on-surface tracking-[0.2em] uppercase">Engineered_Solutions</h2>
+              <div className="w-20 h-1 bg-primary-container mt-4"></div>
+            </div>
+            
+            {/* Controles de Filtro */}
+            <div className="flex flex-wrap gap-2">
+              {categorias.map(cat => (
+                <button 
+                  key={cat} onClick={() => setFiltroActivo(cat)}
+                  className={`px-4 py-2 text-[10px] font-mono tracking-widest uppercase border transition-all ${filtroActivo === cat ? 'bg-primary-container/10 border-primary-container text-primary-container' : 'border-outline-variant/30 text-on-surface-variant hover:border-primary-container/50'}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {proyectos.map((proj, index) => (
-              <motion.div 
-                initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} custom={index}
-                key={proj.id} onClick={() => setProyectoActivo(proj)}
-                className="group relative overflow-hidden rounded-xl glass-panel transition-all duration-500 hover:-translate-y-2 cursor-pointer flex flex-col h-full"
-              >
-                <div className="absolute -inset-0.5 bg-gradient-to-br from-primary-container/20 to-transparent opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100"></div>
-                <div className="relative bg-surface-container-low h-full flex flex-col">
-                  {proj.imagen_url ? (
-                    <div className="relative h-48 overflow-hidden">
-                      <img alt={proj.titulo} src={proj.imagen_url} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-                      <div className="absolute inset-0 scan-line pointer-events-none opacity-30"></div>
-                    </div>
-                  ) : (
-                    <div className="relative h-48 bg-surface-container-highest border-b border-outline-variant/20 flex flex-col items-center justify-center">
-                      <span className="material-symbols-outlined text-4xl text-outline-variant mb-2">schema</span>
-                      <span className="font-mono text-[10px] text-outline-variant tracking-widest uppercase">No_Image_Data</span>
-                    </div>
-                  )}
-                  
-                  <div className="p-8 flex-grow flex flex-col">
-                    <h3 className="font-headline text-xl font-bold text-on-surface mb-4 group-hover:text-primary-container transition-colors">{proj.titulo}</h3>
-                    <p className="text-on-surface-variant text-sm mb-6 line-clamp-3 font-light leading-relaxed">{proj.descripcion}</p>
-                    <div className="mt-auto">
-                      <div className="flex flex-wrap gap-2 mb-6">
-                        <span className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-on-surface-variant font-mono border border-outline-variant/30 text-primary-container/80">
-                          {proj.categoria}
-                        </span>
-                        {proj.tecnologias.split(',').slice(0, 2).map((tech, i) => (
-                           <span key={i} className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-on-surface-variant font-mono border border-outline-variant/30">{tech.trim()}</span>
-                        ))}
+          <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <AnimatePresence>
+              {proyectosFiltrados.map((proj) => (
+                <motion.div 
+                  layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.3 }}
+                  key={proj.id} onClick={() => setProyectoActivo(proj)}
+                  className="group relative overflow-hidden rounded-xl glass-panel transition-all hover:-translate-y-2 cursor-pointer flex flex-col h-full"
+                >
+                  <div className="absolute -inset-0.5 bg-gradient-to-br from-primary-container/20 to-transparent opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100"></div>
+                  <div className="relative bg-surface-container-low h-full flex flex-col">
+                    {proj.imagen_url ? (
+                      <div className="relative h-48 overflow-hidden">
+                        <img alt={proj.titulo} src={proj.imagen_url} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+                        <div className="absolute inset-0 scan-line pointer-events-none opacity-30"></div>
                       </div>
-                      <div className="flex items-center gap-2 text-primary-container text-[10px] font-bold tracking-widest opacity-50 group-hover:opacity-100 transition-opacity uppercase">
-                        View_Specifications <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                    ) : (
+                      <div className="relative h-48 bg-surface-container-highest border-b border-outline-variant/20 flex flex-col items-center justify-center">
+                        <span className="material-symbols-outlined text-4xl text-outline-variant mb-2">schema</span>
+                      </div>
+                    )}
+                    <div className="p-8 flex-grow flex flex-col">
+                      <h3 className="font-headline text-xl font-bold text-on-surface mb-4 group-hover:text-primary-container transition-colors">{proj.titulo}</h3>
+                      <p className="text-on-surface-variant text-sm mb-6 line-clamp-3 font-light leading-relaxed">{proj.descripcion}</p>
+                      <div className="mt-auto">
+                        <div className="flex flex-wrap gap-2 mb-6">
+                          <span className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-on-surface-variant font-mono border border-outline-variant/30 text-primary-container/80">{proj.categoria}</span>
+                          {proj.tecnologias.split(',').slice(0, 2).map((tech, i) => (
+                             <span key={i} className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-on-surface-variant font-mono border border-outline-variant/30">{tech.trim()}</span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            {proyectosFiltrados.length === 0 && <p className="text-on-surface-variant font-mono text-sm italic col-span-full">Awaiting database entries for {filtroActivo}...</p>}
+          </motion.div>
         </section>
 
-        {/* Le pasamos el perfil al Contacto */}
         <Contact perfil={perfil} />
-
       </main>
       
-      {/* MODAL DETALLES DEL PROYECTO */}
+      {/* MODAL DETALLES */}
       <AnimatePresence>
         {proyectoActivo && (
           <motion.div 
@@ -288,9 +287,7 @@ const Portfolio = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {proyectoActivo.tecnologias.split(',').map((tech, i) => (
-                    <span key={i} className="bg-surface-container-high px-3 py-1 text-[10px] font-mono tracking-widest rounded-sm border border-outline-variant/20 uppercase text-on-surface-variant">
-                      {tech.trim()}
-                    </span>
+                    <span key={i} className="bg-surface-container-high px-3 py-1 text-[10px] font-mono tracking-widest rounded-sm border border-outline-variant/20 uppercase text-on-surface-variant">{tech.trim()}</span>
                   ))}
                 </div>
               </section>
@@ -304,21 +301,11 @@ const Portfolio = () => {
                        <div className="w-full h-full flex items-center justify-center"><Terminal size={64} className="text-outline-variant opacity-20"/></div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#111318] to-transparent opacity-60"></div>
-                    <div className="absolute top-4 left-4 flex items-center gap-2 bg-[#111318]/80 backdrop-blur px-3 py-1.5 rounded-lg border border-primary-container/20">
-                      <Terminal size={14} className="text-primary-container" />
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-on-surface">System_Topology_V.{proyectoActivo.id}.0</span>
-                    </div>
-                    <div className="absolute inset-0 scan-line pointer-events-none opacity-20"></div>
                   </div>
-
                   <div className="glass-panel p-8 rounded-xl border border-outline-variant/10 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                      <Terminal size={120} />
-                    </div>
                     <h3 className="font-headline text-xl text-on-surface mb-4">Architecture_Overview</h3>
                     <p className="text-base text-on-surface-variant leading-relaxed font-light">{proyectoActivo.descripcion}</p>
                   </div>
-                  
                   {proyectoActivo.url_repo && (
                     <a href={proyectoActivo.url_repo} target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 bg-primary-container/10 hover:bg-primary-container border border-primary-container/30 hover:border-primary-container text-primary-container hover:text-background font-headline text-xs font-bold tracking-widest transition-all duration-300 px-8 py-4 rounded-sm uppercase group">
                       <ExternalLink size={18} className="group-hover:scale-110 transition-transform" /> Access_Source_Code
@@ -330,24 +317,6 @@ const Portfolio = () => {
                   <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15 space-y-8">
                     <h2 className="font-headline text-xs tracking-[0.4em] uppercase text-on-surface-variant">System_Metrics</h2>
                     <div className="space-y-6">
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-end">
-                          <span className="font-mono text-[10px] uppercase text-on-surface-variant">Uptime SLA</span>
-                          <span className="text-xl font-headline font-bold text-primary-container">99.9%</span>
-                        </div>
-                        <div className="h-1 w-full bg-surface-container-high rounded-full overflow-hidden">
-                          <div className="h-full bg-primary-container w-[99%] shadow-[0_0_8px_rgba(0,240,255,0.6)]"></div>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-end">
-                          <span className="font-mono text-[10px] uppercase text-on-surface-variant">Latency</span>
-                          <span className="text-xl font-headline font-bold text-secondary">~45 ms</span>
-                        </div>
-                        <div className="h-1 w-full bg-surface-container-high rounded-full overflow-hidden">
-                          <div className="h-full bg-secondary w-[15%]"></div>
-                        </div>
-                      </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-end">
                           <span className="font-mono text-[10px] uppercase text-on-surface-variant">Category</span>
@@ -365,15 +334,6 @@ const Portfolio = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <footer className="w-full py-12 bg-surface-container-lowest border-t border-outline-variant/20 flex flex-col items-center gap-6 px-8 relative z-10 mt-20">
-        <div className="text-on-surface font-mono tracking-widest text-xs uppercase opacity-70">
-            Systems_Engineer // Logic_Infrastructure
-        </div>
-        <div className="text-on-surface-variant font-mono text-[10px] tracking-[0.2em] opacity-40">
-            © 2026 {perfil?.nombre || 'MATHIAS_VILLAZON'}
-        </div>
-      </footer>
     </div>
   );
 };
