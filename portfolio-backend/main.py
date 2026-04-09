@@ -66,8 +66,17 @@ def leer_perfil(db: Session = Depends(get_db)):
 @app.put("/api/v1/perfil", response_model=PerfilResponse)
 def actualizar_perfil(perfil_data: PerfilBase, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
     perfil = db.query(models.Perfil).first()
+    
+    # --- NUEVA LÓGICA DE SEGURIDAD ---
+    if not perfil:
+        # Si no existe en la base de datos, lo instanciamos primero
+        perfil = models.Perfil()
+        db.add(perfil)
+    # ---------------------------------
+        
     for key, value in perfil_data.model_dump().items():
         setattr(perfil, key, value)
+        
     db.commit()
     db.refresh(perfil)
     return perfil
