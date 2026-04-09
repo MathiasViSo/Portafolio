@@ -124,7 +124,7 @@ const Contact = () => (
             <div className="mt-1.5 w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(209,188,255,0.6)]"></div>
             <div>
               <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Primary Endpoint</p>
-              <a href="mailto:mathiasvillazons@gmail.com" className="text-on-surface font-headline hover:text-secondary transition-colors">mathiasvillazons@gmail.com</a>
+              <a href={"mailto:" + perfil.email} className="text-on-surface font-headline hover:text-secondary transition-colors">mathiasvillazons@gmail.com</a>
             </div>
           </div>
           <div className="flex items-start gap-4">
@@ -168,8 +168,18 @@ const Portfolio = () => {
   const [proyectoActivo, setProyectoActivo] = useState(null);
 
   useEffect(() => {
+    // 1. Carga inicial de datos
     api.get('/proyectos').then(res => setProyectos(res.data)).catch(err => console.log("API offline"));
+
+    // 2. KEEP-ALIVE: Ping silencioso al backend cada 10 minutos (600000 ms)
+    const keepAlive = setInterval(() => {
+      api.get('/proyectos').then(() => console.log("Ping_Enviado: Servidor Activo")).catch(() => {});
+    }, 600000);
+
+    // Limpieza al desmontar
+    return () => clearInterval(keepAlive);
   }, []);
+
 
   return (
     <div className="bg-background min-h-screen text-on-surface font-body selection:bg-primary-container selection:text-background relative overflow-hidden">
