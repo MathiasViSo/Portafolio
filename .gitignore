@@ -1,0 +1,17 @@
+# Entornos Virtuales
+.venv/
+venv/
+env/
+
+# Backend (Python)
+__pycache__/
+*.py[cod]
+*$py.class
+portfolio-backend/portfolio.db
+
+# Frontend (Node/React)
+portfolio-frontend/node_modules/
+portfolio-frontend/dist/
+.env
+.env.local
+.DS_Store
