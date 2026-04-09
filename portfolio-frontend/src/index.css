@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Space Grotesk", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Tu paleta Obsidian personalizada */
+  --color-primary: #dbfcff;
+  --color-primary-container: #00f0ff;
+  --color-secondary: #d1bcff;
+  --color-background: #111318;
+  --color-surface: #111318;
+  --color-surface-container-lowest: #0c0e12;
+  --color-surface-container-low: #1a1c20;
+  --color-surface-container: #1e2024;
+  --color-surface-container-high: #282a2e;
+  --color-surface-container-highest: #333539;
+  --color-on-background: #e2e2e8;
+  --color-on-surface: #e2e2e8;
+  --color-on-surface-variant: #b9cacb;
+  --color-outline-variant: #3b494b;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+.glass-panel {
+  background: rgba(26, 28, 32, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(59, 73, 75, 0.15);
+}
+
+.scan-line {
+  background: linear-gradient(to bottom, transparent, rgba(0, 240, 255, 0.15), transparent);
+  animation: scan 3s linear infinite;
+}
+
+@keyframes scan {
+  from { top: -100%; }
+  to { top: 100%; }
+}
+
+.neon-glow {
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
