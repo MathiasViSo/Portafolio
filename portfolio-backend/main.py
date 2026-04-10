@@ -1,3 +1,6 @@
+import os
+import jwt
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -17,13 +20,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ADMIN_SECRET_TOKEN = "root_mathias_2026" 
+# --- CONFIGURACIÓN DE SEGURIDAD (JWT) ---
+# Usamos os.getenv para que tome la variable de Render, si no está usa la de por defecto
+ADMIN_SECRET_TOKEN = os.getenv("ADMIN_SECRET_TOKEN", "root_mathias_2026")
+JWT_SECRET = os.getenv("JWT_SECRET", "super_secreto_para_encriptar_tokens_123")
+ALGORITHM = "HS256"
+
+def crear_token():
+    # El token expira en 2 horas
+    exp = datetime.now(timezone.utc) + timedelta(hours=2)
+    return jwt.encode({"sub": "admin_root", "exp": exp}, JWT_SECRET, algorithm=ALGORITHM)
 
 def verificar_admin(x_token: str = Header(...)):
-    if x_token != ADMIN_SECRET_TOKEN:
-        raise HTTPException(status_code=401, detail="Acceso denegado")
+    try:
+        payload = jwt.decode(x_token, JWT_SECRET, algorithms=[ALGORITHM])
+        if payload.get("sub") != "admin_root":
+            raise HTTPException(status_code=401, detail="Token inválido")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expirado")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
 # --- ESQUEMAS PYDANTIC ---
+class LoginRequest(BaseModel):
+    password: str
+
 class ProyectoBase(BaseModel):
     titulo: str
     descripcion: str
@@ -51,6 +72,14 @@ class PerfilResponse(PerfilBase):
     class Config:
         from_attributes = True
 
+# --- RUTA DE LOGIN ---
+@app.post("/api/v1/login")
+def login(data: LoginRequest):
+    if data.password == ADMIN_SECRET_TOKEN:
+        token = crear_token()
+        return {"access_token": token}
+    raise HTTPException(status_code=401, detail="Acceso denegado")
+
 # --- RUTAS DE PERFIL ---
 @app.get("/api/v1/perfil", response_model=PerfilResponse)
 def leer_perfil(db: Session = Depends(get_db)):
@@ -67,12 +96,10 @@ def leer_perfil(db: Session = Depends(get_db)):
 def actualizar_perfil(perfil_data: PerfilBase, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
     perfil = db.query(models.Perfil).first()
     
-    # --- NUEVA LÓGICA DE SEGURIDAD ---
+    # --- LÓGICA DE CREACIÓN SI ESTÁ VACÍO ---
     if not perfil:
-        # Si no existe en la base de datos, lo instanciamos primero
         perfil = models.Perfil()
         db.add(perfil)
-    # ---------------------------------
         
     for key, value in perfil_data.model_dump().items():
         setattr(perfil, key, value)
@@ -110,6 +137,8 @@ def actualizar_proyecto(id: int, proyecto_data: ProyectoBase, db: Session = Depe
 @app.delete("/api/v1/proyectos/{id}")
 def eliminar_proyecto(id: int, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
     proyecto = db.query(models.Proyecto).filter(models.Proyecto.id == id).first()
+    if not proyecto:
+         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     db.delete(proyecto)
     db.commit()
     return {"status": "success"}
