@@ -36,6 +36,11 @@ export default function AdminPanel() {
     nombre: '', titulo: '', descripcion: '', imagen_url: '', email: '', github_url: '', linkedin_url: ''
   });
 
+  // --- FUNCIÓN DE AUTORIZACIÓN PARA PETICIONES ---
+  const getAuth = () => ({
+    headers: { 'x-token': localStorage.getItem('admin_token') }
+  });
+
   const cargarDatos = () => {
     api.get('/proyectos').then(res => setProyectos(res.data)).catch(() => {});
     api.get('/perfil').then(res => setPerfil(res.data)).catch(() => {});
@@ -72,17 +77,17 @@ export default function AdminPanel() {
     e.preventDefault();
     try {
       if (editingId) {
-        await api.put(`/proyectos/${editingId}`, formProyecto);
+        await api.put(`/proyectos/${editingId}`, formProyecto, getAuth());
         showToast("Proyecto actualizado correctamente");
       } else {
-        await api.post('/proyectos', formProyecto);
+        await api.post('/proyectos', formProyecto, getAuth());
         showToast("Proyecto creado correctamente");
       }
       setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: 'MOBILE', url_repo: '', imagen_url: '' });
       setEditingId(null);
       cargarDatos();
     } catch (error) { 
-      showToast("Error al guardar el proyecto.", "error"); 
+      showToast("Error al guardar el proyecto. Revisa tu sesión.", "error"); 
     }
   };
 
@@ -98,7 +103,7 @@ export default function AdminPanel() {
   const eliminarProyecto = async (id) => {
     if(window.confirm("¿Estás seguro de eliminar este proyecto permanentemente?")) {
       try {
-        await api.delete(`/proyectos/${id}`);
+        await api.delete(`/proyectos/${id}`, getAuth());
         showToast("Proyecto eliminado");
         cargarDatos();
       } catch (error) { showToast("Error al eliminar", "error"); }
@@ -108,7 +113,7 @@ export default function AdminPanel() {
   const handleSubmitPerfil = async (e) => {
     e.preventDefault();
     try {
-      await api.put('/perfil', perfil);
+      await api.put('/perfil', perfil, getAuth());
       showToast("Información de perfil actualizada");
       cargarDatos();
     } catch (error) {
