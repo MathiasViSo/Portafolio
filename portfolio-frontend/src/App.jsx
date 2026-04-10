@@ -22,9 +22,6 @@ const Navbar = ({ perfil }) => (
         <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#projects">Proyectos</a>
         <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#contact">Contacto</a>
       </div>
-      <div className="flex items-center gap-4">
-        {/* Botón oculto por seguridad. El acceso a /admin es puramente manual por URL. */}
-      </div>
     </div>
   </nav>
 );
@@ -56,59 +53,92 @@ const Skills = () => (
   </section>
 );
 
-const Contact = ({ perfil }) => (
-  <section className="py-24 border-t border-outline-variant/10 relative" id="contact">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-      <div className="flex flex-col justify-center">
-        <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary-container mb-4 block">Ponte en contacto</span>
-        <h2 className="text-5xl font-headline font-bold text-on-surface tracking-tighter leading-none mb-8">
-          Trabajemos <br/><span className="text-primary-fixed-dim">Juntos</span>
-        </h2>
-        <p className="text-on-surface-variant text-base max-w-md leading-relaxed mb-12">
-          Estoy disponible para conversar sobre oportunidades laborales, proyectos de desarrollo de software o consultas sobre arquitectura de sistemas.
-        </p>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(209,188,255,0.6)]"></div>
-            <div>
-              <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Correo Electrónico</p>
-              <a href={`mailto:${perfil?.email || ''}`} className="text-on-surface font-headline hover:text-secondary transition-colors">
-                {perfil?.email || 'Cargando...'}
-              </a>
+// --- COMPONENTE DE CONTACTO CON WHATSAPP ---
+const Contact = ({ perfil }) => {
+  const [formData, setFormData] = useState({ nombre: '', email: '', mensaje: '' });
+  
+  // ---> AQUÍ DEBES PONER TU NÚMERO DE WHATSAPP (Con código de país, sin el +, por ejemplo 51 para Perú) <---
+  const numeroWhatsApp = "51943809992"; 
+
+  const enviarPorWhatsApp = (e) => {
+    e.preventDefault();
+    // Creamos el texto formateado para WhatsApp
+    const textoMensaje = `Hola Mathias, soy ${formData.nombre}.%0A%0A${formData.mensaje}%0A%0AMi correo de contacto es: ${formData.email}`;
+    // Abrimos la URL de la API de WhatsApp en una nueva pestaña
+    window.open(`https://api.whatsapp.com/send?phone=${numeroWhatsApp}&text=${textoMensaje}`, '_blank');
+  };
+
+  return (
+    <section className="py-24 border-t border-outline-variant/10 relative" id="contact">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+        <div className="flex flex-col justify-center">
+          <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary-container mb-4 block">Ponte en contacto</span>
+          <h2 className="text-5xl font-headline font-bold text-on-surface tracking-tighter leading-none mb-8">
+            Trabajemos <br/><span className="text-primary-fixed-dim">Juntos</span>
+          </h2>
+          <p className="text-on-surface-variant text-base max-w-md leading-relaxed mb-12">
+            Estoy disponible para conversar sobre oportunidades laborales, proyectos de desarrollo de software o consultas sobre arquitectura de sistemas.
+          </p>
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(209,188,255,0.6)]"></div>
+              <div>
+                <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Correo Electrónico</p>
+                <a href={`mailto:${perfil?.email || ''}`} className="text-on-surface font-headline hover:text-secondary transition-colors">
+                  {perfil?.email || 'Cargando...'}
+                </a>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-2 h-2 rounded-full bg-outline-variant"></div>
-            <div>
-              <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Ubicación</p>
-              <p className="text-on-surface font-headline">Chiclayo, Perú // UTC-5</p>
+            <div className="flex items-center gap-4">
+              <div className="w-2 h-2 rounded-full bg-outline-variant"></div>
+              <div>
+                <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Ubicación</p>
+                <p className="text-on-surface font-headline">Chiclayo, Perú // UTC-5</p>
+              </div>
             </div>
           </div>
         </div>
+        <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="glass-panel p-10 rounded-xl relative">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary-container/30 to-transparent"></div>
+          
+          <form className="space-y-8" onSubmit={enviarPorWhatsApp}>
+            <div className="relative group">
+              <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Nombre</label>
+              <input 
+                required type="text" 
+                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline" 
+                placeholder="Tu nombre" 
+                value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})}
+              />
+            </div>
+            <div className="relative group">
+              <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Correo de Contacto</label>
+              <input 
+                required type="email" 
+                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline" 
+                placeholder="tucorreo@ejemplo.com" 
+                value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
+              />
+            </div>
+            <div className="relative group">
+              <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Mensaje</label>
+              <textarea 
+                required rows="3" 
+                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline resize-none" 
+                placeholder="Escribe tu mensaje aquí..."
+                value={formData.mensaje} onChange={e => setFormData({...formData, mensaje: e.target.value})}
+              ></textarea>
+            </div>
+            <button type="submit" className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold uppercase tracking-widest text-sm rounded-sm hover:scale-[1.02] transition-all flex justify-center items-center gap-2">
+              Enviar por WhatsApp <Send size={18} />
+            </button>
+          </form>
+
+        </motion.div>
       </div>
-      <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="glass-panel p-10 rounded-xl relative">
-        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary-container/30 to-transparent"></div>
-        <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); window.location.href = `mailto:${perfil?.email || ''}`; }}>
-          <div className="relative group">
-            <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Nombre</label>
-            <input required type="text" className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline" placeholder="Tu nombre" />
-          </div>
-          <div className="relative group">
-            <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Correo de Contacto</label>
-            <input required type="email" className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline" placeholder="tucorreo@ejemplo.com" />
-          </div>
-          <div className="relative group">
-            <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Mensaje</label>
-            <textarea required rows="3" className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline resize-none" placeholder="Escribe tu mensaje aquí..."></textarea>
-          </div>
-          <button type="submit" className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold uppercase tracking-widest text-sm rounded-sm hover:scale-[1.02] transition-all flex justify-center items-center gap-2">
-            Enviar Mensaje <Send size={18} />
-          </button>
-        </form>
-      </motion.div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // --- MAIN PORTFOLIO ---
 const Portfolio = () => {
@@ -117,7 +147,7 @@ const Portfolio = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filtroActivo, setFiltroActivo] = useState('TODOS');
   const [perfil, setPerfil] = useState({
-    nombre: 'Mathias Villazón', titulo: 'Ingeniero de Sistemas', 
+    nombre: 'Mathias Villazón', titulo: 'Estudiante de Ingeniería de Sistemas', 
     descripcion: 'Cargando información...', email: '', github_url: '', linkedin_url: ''
   });
 
@@ -156,19 +186,21 @@ const Portfolio = () => {
       
       <main className="px-6 md:px-12 max-w-7xl mx-auto relative z-10">
         
-        {/* HERO */}
+        {/* HERO - TIPOGRAFÍA REDUCIDA Y AJUSTADA */}
         <motion.section initial="hidden" animate="visible" variants={fadeUp} className="min-h-[90vh] flex flex-col md:flex-row items-center justify-between pt-20 gap-12" id="home">
           <div className="flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-4 mb-8">
               <div className="h-[1px] w-12 bg-primary-container"></div>
-              <span className="text-sm tracking-[0.2em] text-primary-container uppercase">Disponible para proyectos</span>
+              <span className="text-sm tracking-[0.2em] text-primary-container uppercase font-bold">Disponible para proyectos</span>
             </div>
-            <div className="flex flex-col gap-2">
-              <h1 className="text-5xl md:text-7xl font-headline font-bold leading-tight tracking-tighter text-on-surface uppercase">
-                {perfil.nombre.split('_').join(' ')} <br/>
-                <span className="text-primary-container">{perfil.titulo}</span>
+            <div className="flex flex-col gap-4">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-headline font-bold leading-tight tracking-tighter text-on-surface uppercase">
+                {perfil.nombre.split('_').join(' ')}
               </h1>
-              <p className="text-lg text-on-surface-variant font-light leading-relaxed mt-6 border-l border-outline-variant/30 pl-6">
+              <h2 className="text-2xl md:text-3xl text-primary-container font-headline font-semibold uppercase tracking-wide">
+                {perfil.titulo}
+              </h2>
+              <p className="text-base md:text-lg text-on-surface-variant font-light leading-relaxed mt-4 border-l-2 border-primary-container/30 pl-6 max-w-2xl">
                 {perfil.descripcion}
               </p>
             </div>
@@ -188,8 +220,8 @@ const Portfolio = () => {
           </div>
 
           {perfil.imagen_url && (
-            <div className="hidden md:block w-72 h-72 lg:w-96 lg:h-96 relative group mt-12 md:mt-0">
-              <div className="absolute inset-0 bg-primary-container/20 rounded-full blur-3xl group-hover:bg-primary-container/30 transition-colors duration-500"></div>
+            <div className="hidden md:block w-72 h-72 lg:w-96 lg:h-96 relative group mt-12 md:mt-0 flex-shrink-0">
+              <div className="absolute inset-0 bg-primary-container/20 rounded-xl blur-3xl group-hover:bg-primary-container/30 transition-colors duration-500"></div>
               <img src={perfil.imagen_url} alt={perfil.nombre} className="w-full h-full object-cover rounded-2xl border border-outline-variant/30 grayscale hover:grayscale-0 transition-all duration-500 relative z-10 shadow-2xl" />
             </div>
           )}
@@ -330,30 +362,17 @@ const Portfolio = () => {
   );
 };
 
-// --- ESCUDO DE SEGURIDAD (ANTI-COPIAS Y PROTECCIÓN) ---
+// --- ESCUDO DE SEGURIDAD ---
 export default function App() {
-  
   useEffect(() => {
-    // Escudo para evitar menú contextual (clic derecho)
     const handleContextMenu = (e) => e.preventDefault();
-    
-    // Escudo para evitar atajos de teclado de desarrolladores
     const handleKeyDown = (e) => {
-      // F12, Ctrl+Shift+I (Inspector), Ctrl+Shift+J (Consola), Ctrl+U (Ver código fuente), Ctrl+S (Guardar)
-      if (
-        e.key === 'F12' || 
-        (e.ctrlKey && e.shiftKey && e.key === 'I') || 
-        (e.ctrlKey && e.shiftKey && e.key === 'J') || 
-        (e.ctrlKey && e.key === 'U') ||
-        (e.ctrlKey && e.key === 'S') 
-      ) {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.shiftKey && e.key === 'J') || (e.ctrlKey && e.key === 'U') || (e.ctrlKey && e.key === 'S')) {
         e.preventDefault();
       }
     };
-
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('keydown', handleKeyDown);
-
     return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
