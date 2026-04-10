@@ -1,7 +1,7 @@
 import os
 import jwt
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -12,22 +12,31 @@ from database import engine, get_db
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
+# --- 1. MIDDLEWARE CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # En producción final, podrías cambiar "*" por "https://mathias-portfolio.onrender.com"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# --- 2. MIDDLEWARE DE CABECERAS DE SEGURIDAD (ANTI-CLICKJACKING Y SNIFFING) ---
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 # --- CONFIGURACIÓN DE SEGURIDAD (JWT) ---
-# Usamos os.getenv para que tome la variable de Render, si no está usa la de por defecto
 ADMIN_SECRET_TOKEN = os.getenv("ADMIN_SECRET_TOKEN", "root_mathias_2026")
 JWT_SECRET = os.getenv("JWT_SECRET", "super_secreto_para_encriptar_tokens_123")
 ALGORITHM = "HS256"
 
 def crear_token():
-    # El token expira en 2 horas
     exp = datetime.now(timezone.utc) + timedelta(hours=2)
     return jwt.encode({"sub": "admin_root", "exp": exp}, JWT_SECRET, algorithm=ALGORITHM)
 
@@ -85,7 +94,6 @@ def login(data: LoginRequest):
 def leer_perfil(db: Session = Depends(get_db)):
     perfil = db.query(models.Perfil).first()
     if not perfil:
-        # Si no existe, creamos uno por defecto la primera vez
         perfil = models.Perfil()
         db.add(perfil)
         db.commit()
@@ -96,7 +104,6 @@ def leer_perfil(db: Session = Depends(get_db)):
 def actualizar_perfil(perfil_data: PerfilBase, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
     perfil = db.query(models.Perfil).first()
     
-    # --- LÓGICA DE CREACIÓN SI ESTÁ VACÍO ---
     if not perfil:
         perfil = models.Perfil()
         db.add(perfil)

@@ -23,9 +23,7 @@ const Navbar = ({ perfil }) => (
         <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#contact">Contacto</a>
       </div>
       <div className="flex items-center gap-4">
-        <Link to="/admin" className="hidden md:block text-[10px] uppercase tracking-widest border border-outline-variant/30 px-3 py-1.5 text-on-surface-variant hover:text-primary-container hover:border-primary-container transition-all">
-          Acceso Admin
-        </Link>
+        {/* Botón oculto por seguridad. El acceso a /admin es puramente manual por URL. */}
       </div>
     </div>
   </nav>
@@ -207,7 +205,6 @@ const Portfolio = () => {
               <div className="w-20 h-1 bg-primary-container mt-4"></div>
             </div>
             
-            {/* Controles de Filtro */}
             <div className="flex flex-wrap gap-2">
               {categorias.map(cat => (
                 <button 
@@ -333,7 +330,36 @@ const Portfolio = () => {
   );
 };
 
+// --- ESCUDO DE SEGURIDAD (ANTI-COPIAS Y PROTECCIÓN) ---
 export default function App() {
+  
+  useEffect(() => {
+    // Escudo para evitar menú contextual (clic derecho)
+    const handleContextMenu = (e) => e.preventDefault();
+    
+    // Escudo para evitar atajos de teclado de desarrolladores
+    const handleKeyDown = (e) => {
+      // F12, Ctrl+Shift+I (Inspector), Ctrl+Shift+J (Consola), Ctrl+U (Ver código fuente), Ctrl+S (Guardar)
+      if (
+        e.key === 'F12' || 
+        (e.ctrlKey && e.shiftKey && e.key === 'I') || 
+        (e.ctrlKey && e.shiftKey && e.key === 'J') || 
+        (e.ctrlKey && e.key === 'U') ||
+        (e.ctrlKey && e.key === 'S') 
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
