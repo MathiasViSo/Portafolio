@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail } from 'lucide-react';
+import { X, Mail, UploadCloud, Loader2 } from 'lucide-react';
 import api from './api';
 
 const Toast = ({ message, type }) => (
@@ -19,6 +19,10 @@ export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('proyectos');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [isUploading, setIsUploading] = useState(false);
+
+  const fileInputRefProyecto = useRef(null);
+  const fileInputRefPerfil = useRef(null);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -43,7 +47,6 @@ export default function AdminPanel() {
   const cargarDatos = () => {
     api.get('/proyectos').then(res => setProyectos(res.data)).catch(() => {});
     api.get('/perfil').then(res => setPerfil(res.data)).catch(() => {});
-    // Cargamos los mensajes protegidos
     api.get('/mensajes', getAuth()).then(res => setMensajes(res.data)).catch(() => {});
   };
 
@@ -72,6 +75,43 @@ export default function AdminPanel() {
     localStorage.removeItem('admin_token');
     setIsAuthenticated(false);
     showToast("Sesión cerrada");
+  };
+
+  // --- FUNCIÓN DE SUBIDA DE IMÁGENES A CLOUDINARY ---
+  const handleImageUpload = async (e, target) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await api.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'x-token': localStorage.getItem('admin_token')
+        }
+      });
+      
+      const newUrl = res.data.url;
+      
+      if (target === 'proyecto') {
+        setFormProyecto(prev => ({
+          ...prev,
+          imagen_url: prev.imagen_url ? `${prev.imagen_url}, ${newUrl}` : newUrl
+        }));
+      } else if (target === 'perfil') {
+        setPerfil(prev => ({ ...prev, imagen_url: newUrl }));
+      }
+      
+      showToast("Imagen subida a Cloudinary exitosamente");
+    } catch (error) {
+      showToast("Error subiendo imagen. Revisa los logs.", "error");
+    } finally {
+      setIsUploading(false);
+      e.target.value = null; // Reseteamos el input
+    }
   };
 
   const handleSubmitProyecto = async (e) => {
@@ -222,21 +262,36 @@ export default function AdminPanel() {
               <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-32 focus:border-[#00f0ff] outline-none resize-none" value={formProyecto.descripcion} onChange={e => setFormProyecto({...formProyecto, descripcion: e.target.value})} required />
             </div>
 
-            <div className="col-span-2">
-              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Tecnologías Utilizadas (separadas por comas)</label>
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Tecnologías Utilizadas</label>
               <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" placeholder="Ej: Flutter, Firebase, Dart" value={formProyecto.tecnologias} onChange={e => setFormProyecto({...formProyecto, tecnologias: e.target.value})} required />
             </div>
             
             <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Enlace al Repositorio (Opcional)</label>
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Enlace al Repositorio</label>
               <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" placeholder="https://github.com/..." value={formProyecto.url_repo} onChange={e => setFormProyecto({...formProyecto, url_repo: e.target.value})} />
             </div>
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">URL de la Imagen (Opcional)</label>
-              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" placeholder="https://..." value={formProyecto.imagen_url} onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})} />
+            
+            <div className="col-span-2">
+              <div className="flex justify-between items-end mb-2">
+                <label className="block text-xs uppercase tracking-wider text-gray-400">URLs de las Imágenes</label>
+                
+                {/* BOTÓN Y INPUT OCULTO DE SUBIDA DE PROYECTO */}
+                <input type="file" accept="image/*" className="hidden" ref={fileInputRefProyecto} onChange={(e) => handleImageUpload(e, 'proyecto')} />
+                <button type="button" disabled={isUploading} onClick={() => fileInputRefProyecto.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
+                  {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir a Cloudinary
+                </button>
+              </div>
+
+              <textarea 
+                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-20 focus:border-[#00f0ff] outline-none resize-none text-sm" 
+                placeholder="https://...jpg, https://...png" 
+                value={formProyecto.imagen_url} onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})} 
+              />
+              <span className="text-gray-500 text-[10px] mt-1 block">Si subes múltiples imágenes con el botón, se separarán por comas automáticamente.</span>
             </div>
             
-            <button className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}>
+            <button disabled={isUploading} className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm disabled:opacity-50 ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}>
               {editingId ? 'Guardar Cambios del Proyecto' : 'Publicar Nuevo Proyecto'}
             </button>
           </form>
@@ -282,8 +337,17 @@ export default function AdminPanel() {
           </div>
 
           <div className="col-span-2">
-            <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">URL de tu Foto de Perfil</label>
-            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" placeholder="https://..." value={perfil.imagen_url || ''} onChange={e => setPerfil({...perfil, imagen_url: e.target.value})} />
+            <div className="flex justify-between items-end mb-2">
+              <label className="block text-xs uppercase tracking-wider text-gray-400">URL de tu Foto de Perfil</label>
+              
+              {/* BOTÓN Y INPUT OCULTO DE SUBIDA DE PERFIL */}
+              <input type="file" accept="image/*" className="hidden" ref={fileInputRefPerfil} onChange={(e) => handleImageUpload(e, 'perfil')} />
+              <button type="button" disabled={isUploading} onClick={() => fileInputRefPerfil.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
+                {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir a Cloudinary
+              </button>
+            </div>
+
+            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-sm" placeholder="https://..." value={perfil.imagen_url || ''} onChange={e => setPerfil({...perfil, imagen_url: e.target.value})} />
           </div>
 
           <div className="col-span-2 border-b border-gray-800 pb-4 mb-2 mt-4">
@@ -299,7 +363,7 @@ export default function AdminPanel() {
             <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={perfil.github_url || ''} onChange={e => setPerfil({...perfil, github_url: e.target.value})} />
           </div>
 
-          <button className="col-span-2 bg-primary-container text-background font-bold py-4 mt-6 rounded-md hover:bg-white transition-colors uppercase tracking-widest text-sm">
+          <button disabled={isUploading} className="col-span-2 bg-primary-container text-background font-bold py-4 mt-6 rounded-md hover:bg-white transition-colors uppercase tracking-widest text-sm disabled:opacity-50">
             Guardar Cambios del Perfil
           </button>
         </form>

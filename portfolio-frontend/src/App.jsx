@@ -51,10 +51,9 @@ const Skills = () => (
   </section>
 );
 
-// --- COMPONENTE DE CONTACTO CON MENSAJERÍA INTERNA ---
 const Contact = ({ perfil }) => {
   const [formData, setFormData] = useState({ nombre: '', email: '', mensaje: '' });
-  const [status, setStatus] = useState('idle'); // idle, loading, success, error
+  const [status, setStatus] = useState('idle');
 
   const enviarMensaje = async (e) => {
     e.preventDefault();
@@ -63,7 +62,7 @@ const Contact = ({ perfil }) => {
       await api.post('/mensajes', formData);
       setStatus('success');
       setFormData({ nombre: '', email: '', mensaje: '' });
-      setTimeout(() => setStatus('idle'), 5000); // Vuelve a la normalidad en 5s
+      setTimeout(() => setStatus('idle'), 5000);
     } catch (error) {
       setStatus('error');
       setTimeout(() => setStatus('idle'), 5000);
@@ -173,6 +172,12 @@ const Portfolio = () => {
   const categorias = ['TODOS', 'MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP'];
   const proyectosFiltrados = filtroActivo === 'TODOS' ? proyectos : proyectos.filter(p => p.categoria === filtroActivo);
 
+  // LOGICA DE MULTIPLES IMAGENES
+  const getImagenes = (urlsString) => {
+    if (!urlsString) return [];
+    return urlsString.split(',').map(url => url.trim()).filter(url => url !== '');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center">
@@ -252,40 +257,43 @@ const Portfolio = () => {
           
           <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <AnimatePresence>
-              {proyectosFiltrados.map((proj) => (
-                <motion.div 
-                  layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.3 }}
-                  key={proj.id} onClick={() => setProyectoActivo(proj)}
-                  className="group relative overflow-hidden rounded-xl glass-panel transition-all hover:-translate-y-2 cursor-pointer flex flex-col h-full border border-outline-variant/20 hover:border-primary-container/40"
-                >
-                  <div className="relative bg-surface-container-low h-full flex flex-col">
-                    {proj.imagen_url ? (
-                      <div className="relative h-48 overflow-hidden">
-                        <img alt={proj.titulo} src={proj.imagen_url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-                      </div>
-                    ) : (
-                      <div className="relative h-48 bg-surface-container-highest border-b border-outline-variant/20 flex flex-col items-center justify-center">
-                        <span className="material-symbols-outlined text-4xl text-outline-variant mb-2">schema</span>
-                      </div>
-                    )}
-                    <div className="p-8 flex-grow flex flex-col">
-                      <h3 className="font-headline text-xl font-bold text-on-surface mb-4 group-hover:text-primary-container transition-colors">{proj.titulo}</h3>
-                      <p className="text-on-surface-variant text-sm mb-6 line-clamp-3 font-light leading-relaxed">{proj.descripcion}</p>
-                      <div className="mt-auto">
-                        <div className="flex flex-wrap gap-2 mb-6">
-                          <span className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-primary-container font-mono border border-primary-container/20">{proj.categoria}</span>
-                          {proj.tecnologias.split(',').slice(0, 2).map((tech, i) => (
-                             <span key={i} className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-on-surface-variant font-mono border border-outline-variant/30">{tech.trim()}</span>
-                          ))}
+              {proyectosFiltrados.map((proj) => {
+                const imagenes = getImagenes(proj.imagen_url);
+                return (
+                  <motion.div 
+                    layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.3 }}
+                    key={proj.id} onClick={() => setProyectoActivo(proj)}
+                    className="group relative overflow-hidden rounded-xl glass-panel transition-all hover:-translate-y-2 cursor-pointer flex flex-col h-full border border-outline-variant/20 hover:border-primary-container/40"
+                  >
+                    <div className="relative bg-surface-container-low h-full flex flex-col">
+                      {imagenes.length > 0 ? (
+                        <div className="relative h-48 overflow-hidden">
+                          <img alt={proj.titulo} src={imagenes[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                         </div>
-                        <div className="flex items-center gap-2 text-primary-container text-xs font-bold tracking-widest opacity-70 group-hover:opacity-100 transition-opacity uppercase">
-                          Ver Detalles <ExternalLink size={14} />
+                      ) : (
+                        <div className="relative h-48 bg-surface-container-highest border-b border-outline-variant/20 flex flex-col items-center justify-center">
+                          <span className="material-symbols-outlined text-4xl text-outline-variant mb-2">schema</span>
+                        </div>
+                      )}
+                      <div className="p-8 flex-grow flex flex-col">
+                        <h3 className="font-headline text-xl font-bold text-on-surface mb-4 group-hover:text-primary-container transition-colors">{proj.titulo}</h3>
+                        <p className="text-on-surface-variant text-sm mb-6 line-clamp-3 font-light leading-relaxed">{proj.descripcion}</p>
+                        <div className="mt-auto">
+                          <div className="flex flex-wrap gap-2 mb-6">
+                            <span className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-primary-container font-mono border border-primary-container/20">{proj.categoria}</span>
+                            {proj.tecnologias.split(',').slice(0, 2).map((tech, i) => (
+                               <span key={i} className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-on-surface-variant font-mono border border-outline-variant/30">{tech.trim()}</span>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2 text-primary-container text-xs font-bold tracking-widest opacity-70 group-hover:opacity-100 transition-opacity uppercase">
+                            Ver Detalles <ExternalLink size={14} />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
             {proyectosFiltrados.length === 0 && <p className="text-on-surface-variant text-sm italic col-span-full">No se encontraron proyectos en esta categoría.</p>}
           </motion.div>
@@ -304,7 +312,7 @@ const Portfolio = () => {
             <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-surface border border-outline-variant/30 max-w-5xl w-full p-8 md:p-12 relative shadow-2xl max-h-[95vh] overflow-y-auto rounded-xl"
+              className="bg-surface border border-outline-variant/30 max-w-5xl w-full p-8 md:p-12 relative shadow-2xl max-h-[95vh] overflow-y-auto rounded-xl custom-scrollbar"
             >
               <button onClick={() => setProyectoActivo(null)} className="absolute top-6 right-6 z-20 text-on-surface-variant hover:text-primary-container transition-colors p-2">
                 <X size={28} />
@@ -316,18 +324,34 @@ const Portfolio = () => {
               </section>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="space-y-8">
-                  {proyectoActivo.imagen_url && (
-                    <div className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg">
-                       <img src={proyectoActivo.imagen_url} alt={proyectoActivo.titulo} className="w-full h-auto object-cover" />
-                    </div>
+                
+                {/* GALERÍA DE IMÁGENES MÚLTIPLES */}
+                <div className="space-y-4">
+                  {getImagenes(proyectoActivo.imagen_url).length > 0 && (
+                    <>
+                      {/* Imagen Principal */}
+                      <div className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg bg-surface-container-lowest">
+                         <img src={getImagenes(proyectoActivo.imagen_url)[0]} alt={proyectoActivo.titulo} className="w-full h-auto object-cover" />
+                      </div>
+                      
+                      {/* Cuadrícula de imágenes extra */}
+                      {getImagenes(proyectoActivo.imagen_url).length > 1 && (
+                        <div className="grid grid-cols-2 gap-4">
+                          {getImagenes(proyectoActivo.imagen_url).slice(1).map((imgUrl, idx) => (
+                            <div key={idx} className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md h-32 md:h-40 bg-surface-container-lowest">
+                               <img src={imgUrl} alt={`${proyectoActivo.titulo} - vista ${idx + 2}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
                 <div className="space-y-8 flex flex-col justify-between">
                   <div>
                     <h3 className="font-headline text-xl text-on-surface mb-4 font-bold border-b border-outline-variant/30 pb-2">Descripción General</h3>
-                    <p className="text-base text-on-surface-variant leading-relaxed font-light">{proyectoActivo.descripcion}</p>
+                    <p className="text-base text-on-surface-variant leading-relaxed font-light whitespace-pre-wrap">{proyectoActivo.descripcion}</p>
                   </div>
                   
                   <div>

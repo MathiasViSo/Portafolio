@@ -1,13 +1,17 @@
 import os
 import jwt
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI, Depends, HTTPException, Header, Request
+from fastapi import FastAPI, Depends, HTTPException, Header, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 import models
 from database import engine, get_db
+
+# --- IMPORTACIONES CLOUDINARY ---
+import cloudinary
+import cloudinary.uploader
 
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -29,9 +33,16 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
+# --- CONFIGURACIÓN DE SEGURIDAD Y CLOUDINARY ---
 ADMIN_SECRET_TOKEN = os.getenv("ADMIN_SECRET_TOKEN", "root_mathias_2026")
 JWT_SECRET = os.getenv("JWT_SECRET", "super_secreto_para_encriptar_tokens_123")
 ALGORITHM = "HS256"
+
+cloudinary.config(
+  cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME', 'tu_cloud_name_aqui'),
+  api_key = os.getenv('CLOUDINARY_API_KEY', 'tu_api_key_aqui'),
+  api_secret = os.getenv('CLOUDINARY_API_SECRET', 'tu_api_secret_aqui')
+)
 
 def crear_token():
     exp = datetime.now(timezone.utc) + timedelta(hours=2)
@@ -92,13 +103,23 @@ class MensajeResponse(MensajeBase):
     class Config:
         from_attributes = True
 
-# --- RUTAS DE LOGIN ---
+# --- RUTAS DE LOGIN Y UPLOAD ---
 @app.post("/api/v1/login")
 def login(data: LoginRequest):
     if data.password == ADMIN_SECRET_TOKEN:
         token = crear_token()
         return {"access_token": token}
     raise HTTPException(status_code=401, detail="Acceso denegado")
+
+@app.post("/api/v1/upload")
+async def upload_image(file: UploadFile = File(...), token: str = Depends(verificar_admin)):
+    try:
+        # Subimos el archivo directamente a Cloudinary
+        resultado = cloudinary.uploader.upload(file.file)
+        # Devolvemos la URL segura (https)
+        return {"url": resultado.get("secure_url")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error subiendo imagen: {str(e)}")
 
 # --- RUTAS DE PERFIL ---
 @app.get("/api/v1/perfil", response_model=PerfilResponse)
@@ -156,10 +177,9 @@ def eliminar_proyecto(id: int, db: Session = Depends(get_db), token: str = Depen
     db.commit()
     return {"status": "success"}
 
-# --- RUTAS DE MENSAJES (SISTEMA INTERNO) ---
+# --- RUTAS DE MENSAJES ---
 @app.post("/api/v1/mensajes", response_model=MensajeResponse)
 def crear_mensaje(mensaje: MensajeCreate, db: Session = Depends(get_db)):
-    # Esta ruta es PÚBLICA, cualquiera puede enviar un mensaje
     db_mensaje = models.Mensaje(**mensaje.model_dump())
     db.add(db_mensaje)
     db.commit()
@@ -168,7 +188,6 @@ def crear_mensaje(mensaje: MensajeCreate, db: Session = Depends(get_db)):
 
 @app.get("/api/v1/mensajes", response_model=List[MensajeResponse])
 def leer_mensajes(db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
-    # Esta ruta es PRIVADA, solo el admin lee los mensajes
     return db.query(models.Mensaje).order_by(models.Mensaje.fecha.desc()).all()
 
 @app.delete("/api/v1/mensajes/{id}")
