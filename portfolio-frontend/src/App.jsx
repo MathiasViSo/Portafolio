@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle } from 'lucide-react';
+import ReactGA from 'react-ga4'; // <-- IMPORTACIÓN DE ANALYTICS
 import api from './api';
 import AdminPanel from './Admin';
 
@@ -62,6 +63,14 @@ const Contact = ({ perfil }) => {
       await api.post('/mensajes', formData);
       setStatus('success');
       setFormData({ nombre: '', email: '', mensaje: '' });
+      
+      // TELEMETRÍA: Rastrea cuando alguien te contacta exitosamente
+      ReactGA.event({
+        category: "Engagement",
+        action: "Send_Message",
+        label: "Contact Form"
+      });
+
       setTimeout(() => setStatus('idle'), 5000);
     } catch (error) {
       setStatus('error');
@@ -158,6 +167,15 @@ const Portfolio = () => {
     descripcion: 'Cargando información...', email: '', github_url: '', linkedin_url: ''
   });
 
+  // INICIALIZACIÓN DE ANALYTICS AL CARGAR LA PÁGINA
+  useEffect(() => {
+    const gaId = import.meta.env.VITE_GA_TRACKING_ID;
+    if (gaId) {
+      ReactGA.initialize(gaId);
+      ReactGA.send({ hitType: "pageview", page: window.location.pathname, title: "Home Portfolio" });
+    }
+  }, []);
+
   useEffect(() => {
     Promise.all([
       api.get('/proyectos').catch(() => ({ data: [] })),
@@ -172,10 +190,19 @@ const Portfolio = () => {
   const categorias = ['TODOS', 'MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP'];
   const proyectosFiltrados = filtroActivo === 'TODOS' ? proyectos : proyectos.filter(p => p.categoria === filtroActivo);
 
-  // LOGICA DE MULTIPLES IMAGENES
   const getImagenes = (urlsString) => {
     if (!urlsString) return [];
     return urlsString.split(',').map(url => url.trim()).filter(url => url !== '');
+  };
+
+  // TELEMETRÍA: Evento al abrir un proyecto
+  const abrirProyecto = (proj) => {
+    setProyectoActivo(proj);
+    ReactGA.event({
+      category: "Projects",
+      action: "View_Project_Details",
+      label: proj.titulo
+    });
   };
 
   if (isLoading) {
@@ -216,11 +243,23 @@ const Portfolio = () => {
               <a href="#projects" className="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
                 Ver Proyectos
               </a>
-              <a href="/Mathias_Villazon_CV.pdf" download className="px-8 py-4 bg-surface-container-highest border border-outline-variant/50 hover:border-secondary text-on-surface-variant hover:text-secondary font-headline font-bold text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2">
+              
+              {/* TELEMETRÍA: Clic en Descargar CV */}
+              <a 
+                href="/Mathias_Villazon_CV.pdf" download 
+                onClick={() => ReactGA.event({ category: "Engagement", action: "Download_CV" })}
+                className="px-8 py-4 bg-surface-container-highest border border-outline-variant/50 hover:border-secondary text-on-surface-variant hover:text-secondary font-headline font-bold text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
+              >
                 <FileText size={18} /> Descargar CV
               </a>
+              
+              {/* TELEMETRÍA: Clic en GitHub */}
               {perfil.github_url && (
-                <a href={perfil.github_url} target="_blank" rel="noreferrer" className="px-8 py-4 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2">
+                <a 
+                  href={perfil.github_url} target="_blank" rel="noreferrer" 
+                  onClick={() => ReactGA.event({ category: "Outbound", action: "Click_GitHub", label: perfil.github_url })}
+                  className="px-8 py-4 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
+                >
                   <Code size={18} /> GitHub
                 </a>
               )}
@@ -262,7 +301,7 @@ const Portfolio = () => {
                 return (
                   <motion.div 
                     layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.3 }}
-                    key={proj.id} onClick={() => setProyectoActivo(proj)}
+                    key={proj.id} onClick={() => abrirProyecto(proj)}
                     className="group relative overflow-hidden rounded-xl glass-panel transition-all hover:-translate-y-2 cursor-pointer flex flex-col h-full border border-outline-variant/20 hover:border-primary-container/40"
                   >
                     <div className="relative bg-surface-container-low h-full flex flex-col">
@@ -325,16 +364,13 @@ const Portfolio = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 
-                {/* GALERÍA DE IMÁGENES MÚLTIPLES */}
                 <div className="space-y-4">
                   {getImagenes(proyectoActivo.imagen_url).length > 0 && (
                     <>
-                      {/* Imagen Principal */}
                       <div className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg bg-surface-container-lowest">
                          <img src={getImagenes(proyectoActivo.imagen_url)[0]} alt={proyectoActivo.titulo} className="w-full h-auto object-cover" />
                       </div>
                       
-                      {/* Cuadrícula de imágenes extra */}
                       {getImagenes(proyectoActivo.imagen_url).length > 1 && (
                         <div className="grid grid-cols-2 gap-4">
                           {getImagenes(proyectoActivo.imagen_url).slice(1).map((imgUrl, idx) => (
@@ -365,7 +401,11 @@ const Portfolio = () => {
                     </div>
 
                     {proyectoActivo.url_repo && (
-                      <a href={proyectoActivo.url_repo} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-3 bg-primary-container text-background font-headline text-sm font-bold tracking-widest transition-all duration-300 px-8 py-4 rounded-sm uppercase hover:scale-[1.02] w-full">
+                      <a 
+                        href={proyectoActivo.url_repo} target="_blank" rel="noreferrer" 
+                        onClick={() => ReactGA.event({ category: "Projects", action: "Click_Project_Source", label: proyectoActivo.titulo })}
+                        className="inline-flex items-center justify-center gap-3 bg-primary-container text-background font-headline text-sm font-bold tracking-widest transition-all duration-300 px-8 py-4 rounded-sm uppercase hover:scale-[1.02] w-full"
+                      >
                         <Code size={18} /> Ver Código Fuente
                       </a>
                     )}
