@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, UploadCloud, Loader2 } from 'lucide-react';
+import { X, Mail, UploadCloud, Loader2, RefreshCw } from 'lucide-react';
 import api from './api';
 
 const Toast = ({ message, type }) => (
@@ -30,9 +30,14 @@ export default function AdminPanel() {
   };
 
   const [proyectos, setProyectos] = useState([]);
-  const [mensajes, setMensajes] = useState([]);
-  const [editingId, setEditingId] = useState(null);
   
+  // ESTADOS DE MENSAJES (PAGINACIÓN)
+  const [mensajes, setMensajes] = useState([]);
+  const [msgPage, setMsgPage] = useState(0);
+  const [hasMoreMsgs, setHasMoreMsgs] = useState(true);
+  const msgLimit = 15;
+
+  const [editingId, setEditingId] = useState(null);
   const [formProyecto, setFormProyecto] = useState({ 
     titulo: '', descripcion: '', tecnologias: '', categoria: 'MOBILE', url_repo: '', imagen_url: '' 
   });
@@ -44,10 +49,23 @@ export default function AdminPanel() {
     headers: { 'x-token': localStorage.getItem('admin_token') }
   });
 
+  const cargarMensajes = (pagina, reset = false) => {
+    api.get(`/mensajes?skip=${pagina * msgLimit}&limit=${msgLimit}`, getAuth()).then(res => {
+      if(res.data.length < msgLimit) setHasMoreMsgs(false);
+      else setHasMoreMsgs(true);
+      
+      if(reset) setMensajes(res.data);
+      else setMensajes(prev => [...prev, ...res.data]);
+    }).catch(() => {});
+  };
+
   const cargarDatos = () => {
-    api.get('/proyectos').then(res => setProyectos(res.data)).catch(() => {});
+    // Para el admin cargamos 50 proyectos para editarlos fácilmente (sin paginación compleja aquí)
+    api.get('/proyectos?skip=0&limit=50').then(res => setProyectos(res.data)).catch(() => {});
     api.get('/perfil').then(res => setPerfil(res.data)).catch(() => {});
-    api.get('/mensajes', getAuth()).then(res => setMensajes(res.data)).catch(() => {});
+    
+    setMsgPage(0);
+    cargarMensajes(0, true);
   };
 
   useEffect(() => {
@@ -66,9 +84,7 @@ export default function AdminPanel() {
       setIsAuthenticated(true);
       cargarDatos();
       showToast("Acceso concedido al panel");
-    } catch (error) {
-      showToast("Credenciales incorrectas.", "error");
-    }
+    } catch (error) { showToast("Credenciales incorrectas.", "error"); }
   };
 
   const logout = () => {
@@ -77,7 +93,6 @@ export default function AdminPanel() {
     showToast("Sesión cerrada");
   };
 
-  // --- FUNCIÓN DE SUBIDA DE IMÁGENES A CLOUDINARY ---
   const handleImageUpload = async (e, target) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -93,25 +108,15 @@ export default function AdminPanel() {
           'x-token': localStorage.getItem('admin_token')
         }
       });
-      
       const newUrl = res.data.url;
-      
       if (target === 'proyecto') {
-        setFormProyecto(prev => ({
-          ...prev,
-          imagen_url: prev.imagen_url ? `${prev.imagen_url}, ${newUrl}` : newUrl
-        }));
+        setFormProyecto(prev => ({ ...prev, imagen_url: prev.imagen_url ? `${prev.imagen_url}, ${newUrl}` : newUrl }));
       } else if (target === 'perfil') {
         setPerfil(prev => ({ ...prev, imagen_url: newUrl }));
       }
-      
-      showToast("Imagen subida a Cloudinary exitosamente");
-    } catch (error) {
-      showToast("Error subiendo imagen. Revisa los logs.", "error");
-    } finally {
-      setIsUploading(false);
-      e.target.value = null; // Reseteamos el input
-    }
+      showToast("Imagen subida exitosamente");
+    } catch (error) { showToast("Error subiendo imagen.", "error"); } 
+    finally { setIsUploading(false); e.target.value = null; }
   };
 
   const handleSubmitProyecto = async (e) => {
@@ -154,7 +159,8 @@ export default function AdminPanel() {
       try {
         await api.delete(`/mensajes/${id}`, getAuth());
         showToast("Mensaje eliminado");
-        cargarDatos();
+        // Refrescamos la lista de mensajes sin perder los que ya cargamos
+        setMensajes(prev => prev.filter(m => m.id !== id));
       } catch (error) { showToast("Error al eliminar mensaje", "error"); }
     }
   };
@@ -217,19 +223,30 @@ export default function AdminPanel() {
             {mensajes.length === 0 ? (
               <p className="text-gray-500 italic p-8 text-center bg-[#1a1c20] rounded-xl border border-gray-800">No tienes mensajes nuevos.</p>
             ) : (
-              mensajes.map(m => (
-                <div key={m.id} className="bg-[#1a1c20] border border-gray-800 p-6 rounded-lg shadow-lg relative group">
-                  <button onClick={() => eliminarMensaje(m.id)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 transition-colors">
-                    <X size={20} />
-                  </button>
-                  <div className="mb-4 border-b border-gray-800 pb-4 pr-8">
-                    <h4 className="text-primary-container font-bold text-lg">{m.nombre}</h4>
-                    <a href={`mailto:${m.email}`} className="text-sm text-gray-400 hover:text-white transition-colors block">{m.email}</a>
-                    <span className="text-xs text-gray-500 block mt-2">{new Date(m.fecha).toLocaleString()}</span>
+              <>
+                {mensajes.map(m => (
+                  <div key={m.id} className="bg-[#1a1c20] border border-gray-800 p-6 rounded-lg shadow-lg relative group">
+                    <button onClick={() => eliminarMensaje(m.id)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 transition-colors">
+                      <X size={20} />
+                    </button>
+                    <div className="mb-4 border-b border-gray-800 pb-4 pr-8">
+                      <h4 className="text-primary-container font-bold text-lg">{m.nombre}</h4>
+                      <a href={`mailto:${m.email}`} className="text-sm text-gray-400 hover:text-white transition-colors block">{m.email}</a>
+                      <span className="text-xs text-gray-500 block mt-2">{new Date(m.fecha).toLocaleString()}</span>
+                    </div>
+                    <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{m.mensaje}</p>
                   </div>
-                  <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{m.mensaje}</p>
-                </div>
-              ))
+                ))}
+                
+                {hasMoreMsgs && (
+                  <button 
+                    onClick={() => { const next = msgPage + 1; setMsgPage(next); cargarMensajes(next); }}
+                    className="mt-6 flex items-center justify-center gap-2 w-full py-4 border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600 rounded-lg transition-colors text-sm font-bold tracking-widest uppercase"
+                  >
+                    <RefreshCw size={16} /> Cargar mensajes antiguos
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -275,8 +292,6 @@ export default function AdminPanel() {
             <div className="col-span-2">
               <div className="flex justify-between items-end mb-2">
                 <label className="block text-xs uppercase tracking-wider text-gray-400">URLs de las Imágenes</label>
-                
-                {/* BOTÓN Y INPUT OCULTO DE SUBIDA DE PROYECTO */}
                 <input type="file" accept="image/*" className="hidden" ref={fileInputRefProyecto} onChange={(e) => handleImageUpload(e, 'proyecto')} />
                 <button type="button" disabled={isUploading} onClick={() => fileInputRefProyecto.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
                   {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir a Cloudinary
@@ -297,7 +312,7 @@ export default function AdminPanel() {
           </form>
 
           <div>
-            <h3 className="text-gray-300 mb-4 text-lg font-bold">Proyectos Publicados</h3>
+            <h3 className="text-gray-300 mb-4 text-lg font-bold">Proyectos Publicados (Recientes)</h3>
             <div className="grid gap-3">
               {proyectos.map(p => (
                 <div key={p.id} className="flex flex-col md:flex-row md:items-center justify-between bg-[#1a1c20] border border-gray-800 p-5 rounded-lg hover:border-gray-600 transition-colors">
@@ -339,14 +354,11 @@ export default function AdminPanel() {
           <div className="col-span-2">
             <div className="flex justify-between items-end mb-2">
               <label className="block text-xs uppercase tracking-wider text-gray-400">URL de tu Foto de Perfil</label>
-              
-              {/* BOTÓN Y INPUT OCULTO DE SUBIDA DE PERFIL */}
               <input type="file" accept="image/*" className="hidden" ref={fileInputRefPerfil} onChange={(e) => handleImageUpload(e, 'perfil')} />
               <button type="button" disabled={isUploading} onClick={() => fileInputRefPerfil.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
                 {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir a Cloudinary
               </button>
             </div>
-
             <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-sm" placeholder="https://..." value={perfil.imagen_url || ''} onChange={e => setPerfil({...perfil, imagen_url: e.target.value})} />
           </div>
 

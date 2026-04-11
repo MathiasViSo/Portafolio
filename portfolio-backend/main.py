@@ -8,8 +8,6 @@ from pydantic import BaseModel
 from typing import List, Optional
 import models
 from database import engine, get_db
-
-# --- IMPORTACIONES CLOUDINARY ---
 import cloudinary
 import cloudinary.uploader
 
@@ -33,7 +31,6 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-# --- CONFIGURACIÓN DE SEGURIDAD Y CLOUDINARY ---
 ADMIN_SECRET_TOKEN = os.getenv("ADMIN_SECRET_TOKEN", "root_mathias_2026")
 JWT_SECRET = os.getenv("JWT_SECRET", "super_secreto_para_encriptar_tokens_123")
 ALGORITHM = "HS256"
@@ -114,9 +111,7 @@ def login(data: LoginRequest):
 @app.post("/api/v1/upload")
 async def upload_image(file: UploadFile = File(...), token: str = Depends(verificar_admin)):
     try:
-        # Subimos el archivo directamente a Cloudinary
         resultado = cloudinary.uploader.upload(file.file)
-        # Devolvemos la URL segura (https)
         return {"url": resultado.get("secure_url")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error subiendo imagen: {str(e)}")
@@ -144,10 +139,16 @@ def actualizar_perfil(perfil_data: PerfilBase, db: Session = Depends(get_db), to
     db.refresh(perfil)
     return perfil
 
-# --- RUTAS DE PROYECTOS ---
+# --- RUTAS DE PROYECTOS (CON PAGINACIÓN Y FILTRO DB) ---
 @app.get("/api/v1/proyectos", response_model=List[ProyectoResponse])
-def leer_proyectos(db: Session = Depends(get_db)):
-    return db.query(models.Proyecto).all()
+def leer_proyectos(skip: int = 0, limit: int = 6, categoria: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Proyecto)
+    # Si nos envían una categoría específica, filtramos directamente en la Base de Datos
+    if categoria and categoria != "TODOS":
+        query = query.filter(models.Proyecto.categoria == categoria)
+    
+    # Ordenamos por los más recientes y aplicamos paginación
+    return query.order_by(models.Proyecto.id.desc()).offset(skip).limit(limit).all()
 
 @app.post("/api/v1/proyectos", response_model=ProyectoResponse)
 def crear_proyecto(proyecto: ProyectoBase, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
@@ -177,7 +178,7 @@ def eliminar_proyecto(id: int, db: Session = Depends(get_db), token: str = Depen
     db.commit()
     return {"status": "success"}
 
-# --- RUTAS DE MENSAJES ---
+# --- RUTAS DE MENSAJES (CON PAGINACIÓN) ---
 @app.post("/api/v1/mensajes", response_model=MensajeResponse)
 def crear_mensaje(mensaje: MensajeCreate, db: Session = Depends(get_db)):
     db_mensaje = models.Mensaje(**mensaje.model_dump())
@@ -187,8 +188,8 @@ def crear_mensaje(mensaje: MensajeCreate, db: Session = Depends(get_db)):
     return db_mensaje
 
 @app.get("/api/v1/mensajes", response_model=List[MensajeResponse])
-def leer_mensajes(db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
-    return db.query(models.Mensaje).order_by(models.Mensaje.fecha.desc()).all()
+def leer_mensajes(skip: int = 0, limit: int = 15, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
+    return db.query(models.Mensaje).order_by(models.Mensaje.fecha.desc()).offset(skip).limit(limit).all()
 
 @app.delete("/api/v1/mensajes/{id}")
 def eliminar_mensaje(id: int, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):

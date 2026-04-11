@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle } from 'lucide-react';
-import ReactGA from 'react-ga4'; // <-- IMPORTACIÓN DE ANALYTICS
+import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw } from 'lucide-react';
+import ReactGA from 'react-ga4';
 import api from './api';
 import AdminPanel from './Admin';
 
@@ -63,14 +63,7 @@ const Contact = ({ perfil }) => {
       await api.post('/mensajes', formData);
       setStatus('success');
       setFormData({ nombre: '', email: '', mensaje: '' });
-      
-      // TELEMETRÍA: Rastrea cuando alguien te contacta exitosamente
-      ReactGA.event({
-        category: "Engagement",
-        action: "Send_Message",
-        label: "Contact Form"
-      });
-
+      ReactGA.event({ category: "Engagement", action: "Send_Message", label: "Contact Form" });
       setTimeout(() => setStatus('idle'), 5000);
     } catch (error) {
       setStatus('error');
@@ -99,52 +92,24 @@ const Contact = ({ perfil }) => {
                 </a>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 rounded-full bg-outline-variant"></div>
-              <div>
-                <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Ubicación</p>
-                <p className="text-on-surface font-headline">Chiclayo, Perú // UTC-5</p>
-              </div>
-            </div>
           </div>
         </div>
         <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="glass-panel p-10 rounded-xl relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary-container/30 to-transparent"></div>
-          
           <form className="space-y-8" onSubmit={enviarMensaje}>
             <div className="relative group">
               <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Nombre</label>
-              <input 
-                required type="text" disabled={status === 'loading'}
-                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline disabled:opacity-50" 
-                placeholder="Tu nombre" 
-                value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})}
-              />
+              <input required type="text" disabled={status === 'loading'} className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline disabled:opacity-50" placeholder="Tu nombre" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} />
             </div>
             <div className="relative group">
               <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Correo de Contacto</label>
-              <input 
-                required type="email" disabled={status === 'loading'}
-                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline disabled:opacity-50" 
-                placeholder="tucorreo@ejemplo.com" 
-                value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
-              />
+              <input required type="email" disabled={status === 'loading'} className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline disabled:opacity-50" placeholder="tucorreo@ejemplo.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
             </div>
             <div className="relative group">
               <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Mensaje</label>
-              <textarea 
-                required rows="3" disabled={status === 'loading'}
-                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline resize-none disabled:opacity-50" 
-                placeholder="Escribe tu mensaje aquí..."
-                value={formData.mensaje} onChange={e => setFormData({...formData, mensaje: e.target.value})}
-              ></textarea>
+              <textarea required rows="3" disabled={status === 'loading'} className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline resize-none disabled:opacity-50" placeholder="Escribe tu mensaje aquí..." value={formData.mensaje} onChange={e => setFormData({...formData, mensaje: e.target.value})}></textarea>
             </div>
-            <button 
-              type="submit" disabled={status === 'loading'} 
-              className={`w-full py-4 font-headline font-bold uppercase tracking-widest text-sm rounded-sm transition-all flex justify-center items-center gap-2 
-                ${status === 'success' ? 'bg-green-600 text-white' : status === 'error' ? 'bg-red-600 text-white' : 'bg-gradient-to-r from-primary to-primary-container text-background hover:scale-[1.02]'}
-              `}
-            >
+            <button type="submit" disabled={status === 'loading'} className={`w-full py-4 font-headline font-bold uppercase tracking-widest text-sm rounded-sm transition-all flex justify-center items-center gap-2 ${status === 'success' ? 'bg-green-600 text-white' : status === 'error' ? 'bg-red-600 text-white' : 'bg-gradient-to-r from-primary to-primary-container text-background hover:scale-[1.02]'}`}>
               {status === 'loading' && 'Enviando...'}
               {status === 'success' && <><CheckCircle size={18} /> ¡Mensaje Enviado!</>}
               {status === 'error' && 'Error al enviar'}
@@ -161,13 +126,19 @@ const Portfolio = () => {
   const [proyectos, setProyectos] = useState([]);
   const [proyectoActivo, setProyectoActivo] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // PAGINACIÓN Y FILTROS
   const [filtroActivo, setFiltroActivo] = useState('TODOS');
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const limit = 6;
+
   const [perfil, setPerfil] = useState({
     nombre: 'Mathias Villazón', titulo: 'Estudiante de Ingeniería de Sistemas', 
     descripcion: 'Cargando información...', email: '', github_url: '', linkedin_url: ''
   });
 
-  // INICIALIZACIÓN DE ANALYTICS AL CARGAR LA PÁGINA
   useEffect(() => {
     const gaId = import.meta.env.VITE_GA_TRACKING_ID;
     if (gaId) {
@@ -176,33 +147,58 @@ const Portfolio = () => {
     }
   }, []);
 
+  // CARGAR PERFIL
   useEffect(() => {
-    Promise.all([
-      api.get('/proyectos').catch(() => ({ data: [] })),
-      api.get('/perfil').catch(() => ({ data: perfil }))
-    ]).then(([resProyectos, resPerfil]) => {
-      setProyectos(resProyectos.data);
-      if(resPerfil.data.nombre) setPerfil(resPerfil.data);
-      setTimeout(() => setIsLoading(false), 600); 
-    });
+    api.get('/perfil').then(res => {
+      if(res.data.nombre) setPerfil(res.data);
+    }).catch(() => {});
   }, []);
 
+  // CARGAR PROYECTOS (CON PAGINACIÓN Y FILTROS DESDE EL BACKEND)
+  useEffect(() => {
+    cargarProyectos(0, filtroActivo, true);
+  }, [filtroActivo]);
+
+  const cargarProyectos = (paginaActual, categoria, resetData = false) => {
+    if(!resetData) setIsLoadingMore(true);
+    
+    let url = `/proyectos?skip=${paginaActual * limit}&limit=${limit}`;
+    if(categoria !== 'TODOS') url += `&categoria=${categoria}`;
+
+    api.get(url).then(res => {
+      if(res.data.length < limit) setHasMore(false);
+      else setHasMore(true);
+
+      if(resetData) setProyectos(res.data);
+      else setProyectos(prev => [...prev, ...res.data]);
+      
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }).catch(() => { setIsLoading(false); setIsLoadingMore(false); });
+  };
+
+  const handleCargarMas = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    cargarProyectos(nextPage, filtroActivo, false);
+  };
+
+  const handleCambioFiltro = (cat) => {
+    setFiltroActivo(cat);
+    setPage(0);
+    setHasMore(true);
+  };
+
   const categorias = ['TODOS', 'MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP'];
-  const proyectosFiltrados = filtroActivo === 'TODOS' ? proyectos : proyectos.filter(p => p.categoria === filtroActivo);
 
   const getImagenes = (urlsString) => {
     if (!urlsString) return [];
     return urlsString.split(',').map(url => url.trim()).filter(url => url !== '');
   };
 
-  // TELEMETRÍA: Evento al abrir un proyecto
   const abrirProyecto = (proj) => {
     setProyectoActivo(proj);
-    ReactGA.event({
-      category: "Projects",
-      action: "View_Project_Details",
-      label: proj.titulo
-    });
+    ReactGA.event({ category: "Projects", action: "View_Project_Details", label: proj.titulo });
   };
 
   if (isLoading) {
@@ -222,43 +218,42 @@ const Portfolio = () => {
       <Navbar perfil={perfil} />
       
       <main className="px-6 md:px-12 max-w-7xl mx-auto relative z-10">
-        <motion.section initial="hidden" animate="visible" variants={fadeUp} className="min-h-[90vh] flex flex-col md:flex-row items-center justify-between pt-20 gap-12" id="home">
-          <div className="flex-1 flex flex-col justify-center">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-[1px] w-12 bg-primary-container"></div>
-              <span className="text-sm tracking-[0.2em] text-primary-container uppercase font-bold">Disponible para proyectos</span>
+        
+        {/* HERO SECTION - REPARADO PARA CELULARES */}
+        <motion.section initial="hidden" animate="visible" variants={fadeUp} className="min-h-[90vh] flex flex-col md:flex-row items-center justify-center md:justify-between pt-28 pb-12 gap-8 md:gap-12" id="home">
+          <div className="flex-1 flex flex-col justify-center text-center md:text-left items-center md:items-start order-2 md:order-1">
+            <div className="flex items-center gap-4 mb-6 md:mb-8">
+              <div className="h-[1px] w-8 md:w-12 bg-primary-container"></div>
+              <span className="text-xs md:text-sm tracking-[0.2em] text-primary-container uppercase font-bold">Disponible para proyectos</span>
+              <div className="h-[1px] w-8 bg-primary-container md:hidden"></div>
             </div>
-            <div className="flex flex-col gap-4">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-headline font-bold leading-tight tracking-tighter text-on-surface uppercase">
+            <div className="flex flex-col gap-4 w-full">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-headline font-bold leading-tight tracking-tighter text-on-surface uppercase">
                 {perfil.nombre.split('_').join(' ')}
               </h1>
-              <h2 className="text-2xl md:text-3xl text-primary-container font-headline font-semibold uppercase tracking-wide">
+              <h2 className="text-xl sm:text-2xl md:text-3xl text-primary-container font-headline font-semibold uppercase tracking-wide">
                 {perfil.titulo}
               </h2>
-              <p className="text-base md:text-lg text-on-surface-variant font-light leading-relaxed mt-4 border-l-2 border-primary-container/30 pl-6 max-w-2xl">
+              <p className="text-base md:text-lg text-on-surface-variant font-light leading-relaxed mt-4 border-l-0 md:border-l-2 border-primary-container/30 pl-0 md:pl-6 max-w-2xl mx-auto md:mx-0">
                 {perfil.descripcion}
               </p>
             </div>
-            <div className="flex flex-wrap gap-4 mt-12">
-              <a href="#projects" className="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
+            <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-10 w-full">
+              <a href="#projects" className="px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
                 Ver Proyectos
               </a>
-              
-              {/* TELEMETRÍA: Clic en Descargar CV */}
               <a 
                 href="/Mathias_Villazon_CV.pdf" download 
                 onClick={() => ReactGA.event({ category: "Engagement", action: "Download_CV" })}
-                className="px-8 py-4 bg-surface-container-highest border border-outline-variant/50 hover:border-secondary text-on-surface-variant hover:text-secondary font-headline font-bold text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
+                className="px-6 py-3 md:px-8 md:py-4 bg-surface-container-highest border border-outline-variant/50 hover:border-secondary text-on-surface-variant hover:text-secondary font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
               >
                 <FileText size={18} /> Descargar CV
               </a>
-              
-              {/* TELEMETRÍA: Clic en GitHub */}
               {perfil.github_url && (
                 <a 
                   href={perfil.github_url} target="_blank" rel="noreferrer" 
                   onClick={() => ReactGA.event({ category: "Outbound", action: "Click_GitHub", label: perfil.github_url })}
-                  className="px-8 py-4 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
+                  className="px-6 py-3 md:px-8 md:py-4 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
                 >
                   <Code size={18} /> GitHub
                 </a>
@@ -266,10 +261,11 @@ const Portfolio = () => {
             </div>
           </div>
 
+          {/* IMAGEN DEL HERO VISIBLE EN CELULARES */}
           {perfil.imagen_url && (
-            <div className="hidden md:block w-72 h-72 lg:w-96 lg:h-96 relative group mt-12 md:mt-0 flex-shrink-0">
-              <div className="absolute inset-0 bg-primary-container/20 rounded-xl blur-3xl group-hover:bg-primary-container/30 transition-colors duration-500"></div>
-              <img src={perfil.imagen_url} alt={perfil.nombre} className="w-full h-full object-cover rounded-2xl border border-outline-variant/30 grayscale hover:grayscale-0 transition-all duration-500 relative z-10 shadow-2xl" />
+            <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 relative group flex-shrink-0 mx-auto md:mx-0 order-1 md:order-2 mt-8 md:mt-0">
+              <div className="absolute inset-0 bg-primary-container/20 rounded-full md:rounded-2xl blur-3xl group-hover:bg-primary-container/40 transition-colors duration-700"></div>
+              <img src={perfil.imagen_url} alt={perfil.nombre} className="w-full h-full object-cover rounded-full md:rounded-2xl border-2 md:border border-primary-container/50 md:border-outline-variant/30 md:grayscale hover:grayscale-0 transition-all duration-500 relative z-10 shadow-2xl" />
             </div>
           )}
         </motion.section>
@@ -285,7 +281,7 @@ const Portfolio = () => {
             <div className="flex flex-wrap gap-2">
               {categorias.map(cat => (
                 <button 
-                  key={cat} onClick={() => setFiltroActivo(cat)}
+                  key={cat} onClick={() => handleCambioFiltro(cat)}
                   className={`px-4 py-2 text-[10px] font-bold tracking-widest uppercase rounded-sm transition-all ${filtroActivo === cat ? 'bg-primary-container text-background' : 'border border-outline-variant/30 text-on-surface-variant hover:border-primary-container/50'}`}
                 >
                   {cat}
@@ -296,7 +292,7 @@ const Portfolio = () => {
           
           <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <AnimatePresence>
-              {proyectosFiltrados.map((proj) => {
+              {proyectos.map((proj) => {
                 const imagenes = getImagenes(proj.imagen_url);
                 return (
                   <motion.div 
@@ -320,9 +316,6 @@ const Portfolio = () => {
                         <div className="mt-auto">
                           <div className="flex flex-wrap gap-2 mb-6">
                             <span className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-primary-container font-mono border border-primary-container/20">{proj.categoria}</span>
-                            {proj.tecnologias.split(',').slice(0, 2).map((tech, i) => (
-                               <span key={i} className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-on-surface-variant font-mono border border-outline-variant/30">{tech.trim()}</span>
-                            ))}
                           </div>
                           <div className="flex items-center gap-2 text-primary-container text-xs font-bold tracking-widest opacity-70 group-hover:opacity-100 transition-opacity uppercase">
                             Ver Detalles <ExternalLink size={14} />
@@ -334,8 +327,22 @@ const Portfolio = () => {
                 );
               })}
             </AnimatePresence>
-            {proyectosFiltrados.length === 0 && <p className="text-on-surface-variant text-sm italic col-span-full">No se encontraron proyectos en esta categoría.</p>}
           </motion.div>
+          
+          {/* BOTÓN DE CARGAR MÁS PROYECTOS */}
+          {proyectos.length === 0 && !isLoadingMore && <p className="text-on-surface-variant text-sm italic mt-8 text-center">No se encontraron proyectos en esta categoría.</p>}
+          
+          {hasMore && proyectos.length > 0 && (
+             <div className="flex justify-center mt-16">
+               <button 
+                 onClick={handleCargarMas} disabled={isLoadingMore}
+                 className="flex items-center gap-3 px-8 py-3 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-xs tracking-widest uppercase rounded-sm transition-all disabled:opacity-50"
+               >
+                 {isLoadingMore ? <RefreshCw className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
+                 {isLoadingMore ? 'Cargando...' : 'Cargar Más Proyectos'}
+               </button>
+             </div>
+          )}
         </section>
 
         <Contact perfil={perfil} />
@@ -363,14 +370,12 @@ const Portfolio = () => {
               </section>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                
                 <div className="space-y-4">
                   {getImagenes(proyectoActivo.imagen_url).length > 0 && (
                     <>
                       <div className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg bg-surface-container-lowest">
                          <img src={getImagenes(proyectoActivo.imagen_url)[0]} alt={proyectoActivo.titulo} className="w-full h-auto object-cover" />
                       </div>
-                      
                       {getImagenes(proyectoActivo.imagen_url).length > 1 && (
                         <div className="grid grid-cols-2 gap-4">
                           {getImagenes(proyectoActivo.imagen_url).slice(1).map((imgUrl, idx) => (
@@ -389,7 +394,6 @@ const Portfolio = () => {
                     <h3 className="font-headline text-xl text-on-surface mb-4 font-bold border-b border-outline-variant/30 pb-2">Descripción General</h3>
                     <p className="text-base text-on-surface-variant leading-relaxed font-light whitespace-pre-wrap">{proyectoActivo.descripcion}</p>
                   </div>
-                  
                   <div>
                     <h3 className="font-headline text-lg text-on-surface mb-3 font-bold">Tecnologías Utilizadas</h3>
                     <div className="flex flex-wrap gap-2 mb-8">
@@ -399,7 +403,6 @@ const Portfolio = () => {
                         </span>
                       ))}
                     </div>
-
                     {proyectoActivo.url_repo && (
                       <a 
                         href={proyectoActivo.url_repo} target="_blank" rel="noreferrer" 
