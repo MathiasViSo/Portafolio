@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X, Mail } from 'lucide-react';
 import api from './api';
 
-// --- NOTIFICACIONES TOAST ---
 const Toast = ({ message, type }) => (
   <motion.div 
     initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }}
@@ -18,7 +18,6 @@ export default function AdminPanel() {
   const [authKey, setAuthKey] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('proyectos');
-  
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const showToast = (message, type = 'success') => {
@@ -27,16 +26,16 @@ export default function AdminPanel() {
   };
 
   const [proyectos, setProyectos] = useState([]);
+  const [mensajes, setMensajes] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  
   const [formProyecto, setFormProyecto] = useState({ 
     titulo: '', descripcion: '', tecnologias: '', categoria: 'MOBILE', url_repo: '', imagen_url: '' 
   });
-
   const [perfil, setPerfil] = useState({
     nombre: '', titulo: '', descripcion: '', imagen_url: '', email: '', github_url: '', linkedin_url: ''
   });
 
-  // --- FUNCIÓN DE AUTORIZACIÓN PARA PETICIONES ---
   const getAuth = () => ({
     headers: { 'x-token': localStorage.getItem('admin_token') }
   });
@@ -44,6 +43,8 @@ export default function AdminPanel() {
   const cargarDatos = () => {
     api.get('/proyectos').then(res => setProyectos(res.data)).catch(() => {});
     api.get('/perfil').then(res => setPerfil(res.data)).catch(() => {});
+    // Cargamos los mensajes protegidos
+    api.get('/mensajes', getAuth()).then(res => setMensajes(res.data)).catch(() => {});
   };
 
   useEffect(() => {
@@ -78,17 +79,15 @@ export default function AdminPanel() {
     try {
       if (editingId) {
         await api.put(`/proyectos/${editingId}`, formProyecto, getAuth());
-        showToast("Proyecto actualizado correctamente");
+        showToast("Proyecto actualizado");
       } else {
         await api.post('/proyectos', formProyecto, getAuth());
-        showToast("Proyecto creado correctamente");
+        showToast("Proyecto creado");
       }
       setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: 'MOBILE', url_repo: '', imagen_url: '' });
       setEditingId(null);
       cargarDatos();
-    } catch (error) { 
-      showToast("Error al guardar el proyecto. Revisa tu sesión.", "error"); 
-    }
+    } catch (error) { showToast("Error al guardar", "error"); }
   };
 
   const iniciarEdicion = (proyecto) => {
@@ -101,7 +100,7 @@ export default function AdminPanel() {
   };
 
   const eliminarProyecto = async (id) => {
-    if(window.confirm("¿Estás seguro de eliminar este proyecto permanentemente?")) {
+    if(window.confirm("¿Eliminar este proyecto permanentemente?")) {
       try {
         await api.delete(`/proyectos/${id}`, getAuth());
         showToast("Proyecto eliminado");
@@ -110,15 +109,23 @@ export default function AdminPanel() {
     }
   };
 
+  const eliminarMensaje = async (id) => {
+    if(window.confirm("¿Eliminar este mensaje? No podrás recuperarlo.")) {
+      try {
+        await api.delete(`/mensajes/${id}`, getAuth());
+        showToast("Mensaje eliminado");
+        cargarDatos();
+      } catch (error) { showToast("Error al eliminar mensaje", "error"); }
+    }
+  };
+
   const handleSubmitPerfil = async (e) => {
     e.preventDefault();
     try {
       await api.put('/perfil', perfil, getAuth());
-      showToast("Información de perfil actualizada");
+      showToast("Perfil actualizado");
       cargarDatos();
-    } catch (error) {
-      showToast("Error al actualizar perfil", "error");
-    }
+    } catch (error) { showToast("Error al actualizar perfil", "error"); }
   };
 
   if (!isAuthenticated) {
@@ -150,12 +157,43 @@ export default function AdminPanel() {
           <h2 className="text-3xl text-white font-bold tracking-tight">Panel de Administración</h2>
           <p className="text-on-surface-variant text-sm mt-1">Gestiona tu portafolio público</p>
         </div>
-        <div className="flex items-center gap-4 mt-4 md:mt-0">
+        <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-4 md:mt-0">
           <button onClick={() => setActiveTab('proyectos')} className={`px-4 py-2 font-bold text-sm uppercase rounded-md transition-all ${activeTab === 'proyectos' ? 'bg-primary-container/10 text-primary-container' : 'text-gray-400 hover:bg-gray-800'}`}>Proyectos</button>
           <button onClick={() => setActiveTab('perfil')} className={`px-4 py-2 font-bold text-sm uppercase rounded-md transition-all ${activeTab === 'perfil' ? 'bg-primary-container/10 text-primary-container' : 'text-gray-400 hover:bg-gray-800'}`}>Mi Perfil</button>
+          <button onClick={() => setActiveTab('mensajes')} className={`px-4 py-2 font-bold text-sm uppercase rounded-md transition-all flex items-center gap-2 ${activeTab === 'mensajes' ? 'bg-primary-container/10 text-primary-container' : 'text-gray-400 hover:bg-gray-800'}`}>
+             Bandeja <span className="bg-primary-container text-background px-2 rounded-full text-xs">{mensajes.length}</span>
+          </button>
           <button onClick={logout} className="text-red-400 text-sm hover:text-red-300 ml-4 font-bold">Salir</button>
         </div>
       </div>
+
+      {activeTab === 'mensajes' && (
+        <div>
+          <div className="border-b border-gray-800 pb-4 mb-6">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2"><Mail size={20}/> Bandeja de Entrada</h3>
+            <p className="text-on-surface-variant text-sm mt-1">Mensajes recibidos desde el formulario de contacto</p>
+          </div>
+          <div className="grid gap-4">
+            {mensajes.length === 0 ? (
+              <p className="text-gray-500 italic p-8 text-center bg-[#1a1c20] rounded-xl border border-gray-800">No tienes mensajes nuevos.</p>
+            ) : (
+              mensajes.map(m => (
+                <div key={m.id} className="bg-[#1a1c20] border border-gray-800 p-6 rounded-lg shadow-lg relative group">
+                  <button onClick={() => eliminarMensaje(m.id)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 transition-colors">
+                    <X size={20} />
+                  </button>
+                  <div className="mb-4 border-b border-gray-800 pb-4 pr-8">
+                    <h4 className="text-primary-container font-bold text-lg">{m.nombre}</h4>
+                    <a href={`mailto:${m.email}`} className="text-sm text-gray-400 hover:text-white transition-colors block">{m.email}</a>
+                    <span className="text-xs text-gray-500 block mt-2">{new Date(m.fecha).toLocaleString()}</span>
+                  </div>
+                  <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{m.mensaje}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {activeTab === 'proyectos' && (
         <>

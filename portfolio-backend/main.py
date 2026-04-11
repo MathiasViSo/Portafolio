@@ -12,16 +12,14 @@ from database import engine, get_db
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
-# --- 1. MIDDLEWARE CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # En producción final, podrías cambiar "*" por "https://mathias-portfolio.onrender.com"
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- 2. MIDDLEWARE DE CABECERAS DE SEGURIDAD (ANTI-CLICKJACKING Y SNIFFING) ---
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -31,7 +29,6 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-# --- CONFIGURACIÓN DE SEGURIDAD (JWT) ---
 ADMIN_SECRET_TOKEN = os.getenv("ADMIN_SECRET_TOKEN", "root_mathias_2026")
 JWT_SECRET = os.getenv("JWT_SECRET", "super_secreto_para_encriptar_tokens_123")
 ALGORITHM = "HS256"
@@ -81,7 +78,21 @@ class PerfilResponse(PerfilBase):
     class Config:
         from_attributes = True
 
-# --- RUTA DE LOGIN ---
+class MensajeBase(BaseModel):
+    nombre: str
+    email: str
+    mensaje: str
+
+class MensajeCreate(MensajeBase):
+    pass
+
+class MensajeResponse(MensajeBase):
+    id: int
+    fecha: datetime
+    class Config:
+        from_attributes = True
+
+# --- RUTAS DE LOGIN ---
 @app.post("/api/v1/login")
 def login(data: LoginRequest):
     if data.password == ADMIN_SECRET_TOKEN:
@@ -103,14 +114,11 @@ def leer_perfil(db: Session = Depends(get_db)):
 @app.put("/api/v1/perfil", response_model=PerfilResponse)
 def actualizar_perfil(perfil_data: PerfilBase, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
     perfil = db.query(models.Perfil).first()
-    
     if not perfil:
         perfil = models.Perfil()
         db.add(perfil)
-        
     for key, value in perfil_data.model_dump().items():
         setattr(perfil, key, value)
-        
     db.commit()
     db.refresh(perfil)
     return perfil
@@ -133,10 +141,8 @@ def actualizar_proyecto(id: int, proyecto_data: ProyectoBase, db: Session = Depe
     proyecto = db.query(models.Proyecto).filter(models.Proyecto.id == id).first()
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    
     for key, value in proyecto_data.model_dump().items():
         setattr(proyecto, key, value)
-        
     db.commit()
     db.refresh(proyecto)
     return proyecto
@@ -147,5 +153,29 @@ def eliminar_proyecto(id: int, db: Session = Depends(get_db), token: str = Depen
     if not proyecto:
          raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     db.delete(proyecto)
+    db.commit()
+    return {"status": "success"}
+
+# --- RUTAS DE MENSAJES (SISTEMA INTERNO) ---
+@app.post("/api/v1/mensajes", response_model=MensajeResponse)
+def crear_mensaje(mensaje: MensajeCreate, db: Session = Depends(get_db)):
+    # Esta ruta es PÚBLICA, cualquiera puede enviar un mensaje
+    db_mensaje = models.Mensaje(**mensaje.model_dump())
+    db.add(db_mensaje)
+    db.commit()
+    db.refresh(db_mensaje)
+    return db_mensaje
+
+@app.get("/api/v1/mensajes", response_model=List[MensajeResponse])
+def leer_mensajes(db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
+    # Esta ruta es PRIVADA, solo el admin lee los mensajes
+    return db.query(models.Mensaje).order_by(models.Mensaje.fecha.desc()).all()
+
+@app.delete("/api/v1/mensajes/{id}")
+def eliminar_mensaje(id: int, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
+    mensaje = db.query(models.Mensaje).filter(models.Mensaje.id == id).first()
+    if not mensaje:
+         raise HTTPException(status_code=404, detail="Mensaje no encontrado")
+    db.delete(mensaje)
     db.commit()
     return {"status": "success"}

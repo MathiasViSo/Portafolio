@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send } from 'lucide-react';
+import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle } from 'lucide-react';
 import api from './api';
 import AdminPanel from './Admin';
 
-// --- ANIMACIONES ---
 const fadeUp = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }};
 const staggerContainer = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } }};
 
-// --- COMPONENTES ---
 const Navbar = ({ perfil }) => (
   <nav className="fixed top-0 w-full z-50 bg-[#111318]/80 backdrop-blur-xl border-b border-[#00F0FF]/10 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
     <div className="flex justify-between items-center px-6 md:px-12 py-4 max-w-7xl mx-auto font-headline tracking-tighter">
@@ -53,19 +51,23 @@ const Skills = () => (
   </section>
 );
 
-// --- COMPONENTE DE CONTACTO CON WHATSAPP ---
+// --- COMPONENTE DE CONTACTO CON MENSAJERÍA INTERNA ---
 const Contact = ({ perfil }) => {
   const [formData, setFormData] = useState({ nombre: '', email: '', mensaje: '' });
-  
-  // ---> AQUÍ DEBES PONER TU NÚMERO DE WHATSAPP (Con código de país, sin el +, por ejemplo 51 para Perú) <---
-  const numeroWhatsApp = "51943809992"; 
+  const [status, setStatus] = useState('idle'); // idle, loading, success, error
 
-  const enviarPorWhatsApp = (e) => {
+  const enviarMensaje = async (e) => {
     e.preventDefault();
-    // Creamos el texto formateado para WhatsApp
-    const textoMensaje = `Hola Mathias, soy ${formData.nombre}.%0A%0A${formData.mensaje}%0A%0AMi correo de contacto es: ${formData.email}`;
-    // Abrimos la URL de la API de WhatsApp en una nueva pestaña
-    window.open(`https://api.whatsapp.com/send?phone=${numeroWhatsApp}&text=${textoMensaje}`, '_blank');
+    setStatus('loading');
+    try {
+      await api.post('/mensajes', formData);
+      setStatus('success');
+      setFormData({ nombre: '', email: '', mensaje: '' });
+      setTimeout(() => setStatus('idle'), 5000); // Vuelve a la normalidad en 5s
+    } catch (error) {
+      setStatus('error');
+      setTimeout(() => setStatus('idle'), 5000);
+    }
   };
 
   return (
@@ -101,12 +103,12 @@ const Contact = ({ perfil }) => {
         <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="glass-panel p-10 rounded-xl relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary-container/30 to-transparent"></div>
           
-          <form className="space-y-8" onSubmit={enviarPorWhatsApp}>
+          <form className="space-y-8" onSubmit={enviarMensaje}>
             <div className="relative group">
               <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Nombre</label>
               <input 
-                required type="text" 
-                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline" 
+                required type="text" disabled={status === 'loading'}
+                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline disabled:opacity-50" 
                 placeholder="Tu nombre" 
                 value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})}
               />
@@ -114,8 +116,8 @@ const Contact = ({ perfil }) => {
             <div className="relative group">
               <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Correo de Contacto</label>
               <input 
-                required type="email" 
-                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline" 
+                required type="email" disabled={status === 'loading'}
+                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline disabled:opacity-50" 
                 placeholder="tucorreo@ejemplo.com" 
                 value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
               />
@@ -123,24 +125,30 @@ const Contact = ({ perfil }) => {
             <div className="relative group">
               <label className="block text-xs uppercase tracking-[0.1em] text-on-surface-variant mb-2">Mensaje</label>
               <textarea 
-                required rows="3" 
-                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline resize-none" 
+                required rows="3" disabled={status === 'loading'}
+                className="w-full bg-surface border-0 border-b border-outline-variant/30 py-3 px-2 text-on-surface focus:ring-0 focus:border-primary-container transition-colors placeholder:text-surface-variant font-headline resize-none disabled:opacity-50" 
                 placeholder="Escribe tu mensaje aquí..."
                 value={formData.mensaje} onChange={e => setFormData({...formData, mensaje: e.target.value})}
               ></textarea>
             </div>
-            <button type="submit" className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold uppercase tracking-widest text-sm rounded-sm hover:scale-[1.02] transition-all flex justify-center items-center gap-2">
-              Enviar por WhatsApp <Send size={18} />
+            <button 
+              type="submit" disabled={status === 'loading'} 
+              className={`w-full py-4 font-headline font-bold uppercase tracking-widest text-sm rounded-sm transition-all flex justify-center items-center gap-2 
+                ${status === 'success' ? 'bg-green-600 text-white' : status === 'error' ? 'bg-red-600 text-white' : 'bg-gradient-to-r from-primary to-primary-container text-background hover:scale-[1.02]'}
+              `}
+            >
+              {status === 'loading' && 'Enviando...'}
+              {status === 'success' && <><CheckCircle size={18} /> ¡Mensaje Enviado!</>}
+              {status === 'error' && 'Error al enviar'}
+              {status === 'idle' && <>Enviar Mensaje <Send size={18} /></>}
             </button>
           </form>
-
         </motion.div>
       </div>
     </section>
   );
 };
 
-// --- MAIN PORTFOLIO ---
 const Portfolio = () => {
   const [proyectos, setProyectos] = useState([]);
   const [proyectoActivo, setProyectoActivo] = useState(null);
@@ -160,9 +168,6 @@ const Portfolio = () => {
       if(resPerfil.data.nombre) setPerfil(resPerfil.data);
       setTimeout(() => setIsLoading(false), 600); 
     });
-
-    const keepAlive = setInterval(() => api.get('/proyectos').catch(() => {}), 600000);
-    return () => clearInterval(keepAlive);
   }, []);
 
   const categorias = ['TODOS', 'MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP'];
@@ -185,8 +190,6 @@ const Portfolio = () => {
       <Navbar perfil={perfil} />
       
       <main className="px-6 md:px-12 max-w-7xl mx-auto relative z-10">
-        
-        {/* HERO - TIPOGRAFÍA REDUCIDA Y AJUSTADA */}
         <motion.section initial="hidden" animate="visible" variants={fadeUp} className="min-h-[90vh] flex flex-col md:flex-row items-center justify-between pt-20 gap-12" id="home">
           <div className="flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-4 mb-8">
@@ -229,14 +232,12 @@ const Portfolio = () => {
 
         <Skills />
         
-        {/* PROJECTS */}
         <section className="py-24 border-t border-outline-variant/10" id="projects">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
             <div>
               <h2 className="text-2xl font-headline font-bold text-on-surface tracking-[0.2em] uppercase">Proyectos Destacados</h2>
               <div className="w-20 h-1 bg-primary-container mt-4"></div>
             </div>
-            
             <div className="flex flex-wrap gap-2">
               {categorias.map(cat => (
                 <button 
@@ -293,7 +294,6 @@ const Portfolio = () => {
         <Contact perfil={perfil} />
       </main>
       
-      {/* MODAL DETALLES */}
       <AnimatePresence>
         {proyectoActivo && (
           <motion.div 
@@ -362,7 +362,6 @@ const Portfolio = () => {
   );
 };
 
-// --- ESCUDO DE SEGURIDAD ---
 export default function App() {
   useEffect(() => {
     const handleContextMenu = (e) => e.preventDefault();
