@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException, Header, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text # <-- IMPORTANTE
 from pydantic import BaseModel
 from typing import List, Optional
 import models
@@ -11,7 +12,17 @@ from database import engine, get_db
 import cloudinary
 import cloudinary.uploader
 
+# Creamos las tablas normales
 models.Base.metadata.create_all(bind=engine)
+
+# --- SCRIPT DE AUTO-MIGRACIÓN (Protege tus datos) ---
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE perfil ADD COLUMN redes_sociales TEXT DEFAULT '[]'"))
+        conn.commit()
+except Exception:
+    pass # Si la columna ya existe, simplemente ignora el error y continúa
+
 app = FastAPI()
 
 app.add_middleware(
@@ -84,6 +95,7 @@ class PerfilBase(BaseModel):
     email: str
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None
+    redes_sociales: Optional[str] = "[]" # <-- NUEVO CAMPO
 
 class PerfilResponse(PerfilBase):
     id: int

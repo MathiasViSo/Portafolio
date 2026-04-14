@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock } from 'lucide-react';
+import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock, Plus, Trash2 } from 'lucide-react';
 import api from './api';
 
 const Toast = ({ message, type }) => (
@@ -21,7 +21,6 @@ export default function AdminPanel() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [isUploading, setIsUploading] = useState(false);
 
-  // ESTADOS PARA CONTRASEÑA
   const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
 
   const fileInputRefProyecto = useRef(null);
@@ -33,8 +32,6 @@ export default function AdminPanel() {
   };
 
   const [proyectos, setProyectos] = useState([]);
-  
-  // ESTADOS DE MENSAJES (PAGINACIÓN)
   const [mensajes, setMensajes] = useState([]);
   const [msgPage, setMsgPage] = useState(0);
   const [hasMoreMsgs, setHasMoreMsgs] = useState(true);
@@ -45,8 +42,11 @@ export default function AdminPanel() {
     titulo: '', descripcion: '', tecnologias: '', categoria: 'MOBILE', url_repo: '', imagen_url: '' 
   });
   const [perfil, setPerfil] = useState({
-    nombre: '', titulo: '', descripcion: '', imagen_url: '', email: '', github_url: '', linkedin_url: ''
+    nombre: '', titulo: '', descripcion: '', imagen_url: '', email: '', github_url: '', linkedin_url: '', redes_sociales: '[]'
   });
+  
+  // ESTADO DINÁMICO PARA REDES SOCIALES EXTRA
+  const [redesExtra, setRedesExtra] = useState([]);
 
   const getAuth = () => ({
     headers: { 'x-token': localStorage.getItem('admin_token') }
@@ -64,7 +64,10 @@ export default function AdminPanel() {
 
   const cargarDatos = () => {
     api.get('/proyectos?skip=0&limit=50').then(res => setProyectos(res.data)).catch(() => {});
-    api.get('/perfil').then(res => setPerfil(res.data)).catch(() => {});
+    api.get('/perfil').then(res => {
+      setPerfil(res.data);
+      setRedesExtra(JSON.parse(res.data.redes_sociales || '[]'));
+    }).catch(() => {});
     setMsgPage(0);
     cargarMensajes(0, true);
   };
@@ -120,10 +123,7 @@ export default function AdminPanel() {
 
     try {
       const res = await api.post('/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'x-token': localStorage.getItem('admin_token')
-        }
+        headers: { 'Content-Type': 'multipart/form-data', 'x-token': localStorage.getItem('admin_token') }
       });
       const newUrl = res.data.url;
       if (target === 'proyecto') {
@@ -181,10 +181,21 @@ export default function AdminPanel() {
     }
   };
 
+  // --- GESTIÓN DE REDES EXTRA ---
+  const handleAddRed = () => setRedesExtra([...redesExtra, { nombre: '', url: '' }]);
+  const handleRemoveRed = (idx) => setRedesExtra(redesExtra.filter((_, i) => i !== idx));
+  const handleChangeRed = (idx, field, value) => {
+    const newRedes = [...redesExtra];
+    newRedes[idx][field] = value;
+    setRedesExtra(newRedes);
+  };
+
   const handleSubmitPerfil = async (e) => {
     e.preventDefault();
     try {
-      await api.put('/perfil', perfil, getAuth());
+      // Empaquetamos el array de redes extra en un string JSON antes de enviar
+      const payload = { ...perfil, redes_sociales: JSON.stringify(redesExtra) };
+      await api.put('/perfil', payload, getAuth());
       showToast("Perfil actualizado");
       cargarDatos();
     } catch (error) { showToast("Error al actualizar perfil", "error"); }
@@ -276,9 +287,7 @@ export default function AdminPanel() {
               <>
                 {mensajes.map(m => (
                   <div key={m.id} className="bg-[#1a1c20] border border-gray-800 p-6 rounded-lg shadow-lg relative group">
-                    <button onClick={() => eliminarMensaje(m.id)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 transition-colors">
-                      <X size={20} />
-                    </button>
+                    <button onClick={() => eliminarMensaje(m.id)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 transition-colors"><X size={20} /></button>
                     <div className="mb-4 border-b border-gray-800 pb-4 pr-8">
                       <h4 className="text-primary-container font-bold text-lg">{m.nombre}</h4>
                       <a href={`mailto:${m.email}`} className="text-sm text-gray-400 hover:text-white transition-colors block">{m.email}</a>
@@ -287,12 +296,8 @@ export default function AdminPanel() {
                     <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{m.mensaje}</p>
                   </div>
                 ))}
-                
                 {hasMoreMsgs && (
-                  <button 
-                    onClick={() => { const next = msgPage + 1; setMsgPage(next); cargarMensajes(next); }}
-                    className="mt-6 flex items-center justify-center gap-2 w-full py-4 border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600 rounded-lg transition-colors text-sm font-bold tracking-widest uppercase"
-                  >
+                  <button onClick={() => { const next = msgPage + 1; setMsgPage(next); cargarMensajes(next); }} className="mt-6 flex items-center justify-center gap-2 w-full py-4 border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600 rounded-lg transition-colors text-sm font-bold tracking-widest uppercase">
                     <RefreshCw size={16} /> Cargar mensajes antiguos
                   </button>
                 )}
@@ -347,13 +352,7 @@ export default function AdminPanel() {
                   {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir a Cloudinary
                 </button>
               </div>
-
-              <textarea 
-                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-20 focus:border-[#00f0ff] outline-none resize-none text-sm" 
-                placeholder="https://...jpg, https://...png" 
-                value={formProyecto.imagen_url} onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})} 
-              />
-              <span className="text-gray-500 text-[10px] mt-1 block">Si subes múltiples imágenes con el botón, se separarán por comas automáticamente.</span>
+              <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-20 focus:border-[#00f0ff] outline-none resize-none text-sm" placeholder="https://...jpg, https://...png" value={formProyecto.imagen_url} onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})} />
             </div>
             
             <button disabled={isUploading} className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm disabled:opacity-50 ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}>
@@ -362,7 +361,7 @@ export default function AdminPanel() {
           </form>
 
           <div>
-            <h3 className="text-gray-300 mb-4 text-lg font-bold">Proyectos Publicados (Recientes)</h3>
+            <h3 className="text-gray-300 mb-4 text-lg font-bold">Proyectos Publicados</h3>
             <div className="grid gap-3">
               {proyectos.map(p => (
                 <div key={p.id} className="flex flex-col md:flex-row md:items-center justify-between bg-[#1a1c20] border border-gray-800 p-5 rounded-lg hover:border-gray-600 transition-colors">
@@ -397,33 +396,57 @@ export default function AdminPanel() {
           </div>
           
           <div className="col-span-2">
-            <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Perfil Profesional (Acerca de mí)</label>
+            <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Perfil Profesional</label>
             <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-32 focus:border-[#00f0ff] outline-none resize-none" value={perfil.descripcion} onChange={e => setPerfil({...perfil, descripcion: e.target.value})} required />
           </div>
 
           <div className="col-span-2">
             <div className="flex justify-between items-end mb-2">
-              <label className="block text-xs uppercase tracking-wider text-gray-400">URL de tu Foto de Perfil</label>
+              <label className="block text-xs uppercase tracking-wider text-gray-400">URL Foto de Perfil</label>
               <input type="file" accept="image/*" className="hidden" ref={fileInputRefPerfil} onChange={(e) => handleImageUpload(e, 'perfil')} />
               <button type="button" disabled={isUploading} onClick={() => fileInputRefPerfil.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
                 {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir a Cloudinary
               </button>
             </div>
-            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-sm" placeholder="https://..." value={perfil.imagen_url || ''} onChange={e => setPerfil({...perfil, imagen_url: e.target.value})} />
+            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-sm" value={perfil.imagen_url || ''} onChange={e => setPerfil({...perfil, imagen_url: e.target.value})} />
           </div>
 
           <div className="col-span-2 border-b border-gray-800 pb-4 mb-2 mt-4">
-            <h3 className="text-lg font-bold text-white">Contacto y Redes</h3>
+            <h3 className="text-lg font-bold text-white">Contacto y Redes (Fijas)</h3>
           </div>
 
           <div className="col-span-2 md:col-span-1">
-            <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Correo Electrónico Público</label>
+            <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Correo Electrónico</label>
             <input type="email" className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={perfil.email} onChange={e => setPerfil({...perfil, email: e.target.value})} required />
           </div>
           <div className="col-span-2 md:col-span-1">
             <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Enlace de GitHub</label>
             <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={perfil.github_url || ''} onChange={e => setPerfil({...perfil, github_url: e.target.value})} />
           </div>
+
+          {/* SECCIÓN NUEVA: REDES DINÁMICAS */}
+          <div className="col-span-2 border-b border-gray-800 pb-4 mb-2 mt-4 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-white">Redes Sociales Extra</h3>
+            <button type="button" onClick={handleAddRed} className="flex items-center gap-2 text-xs font-bold bg-gray-800 text-white px-3 py-1.5 rounded hover:bg-gray-700 transition-colors">
+              <Plus size={14} /> Añadir Red
+            </button>
+          </div>
+
+          {redesExtra.map((red, idx) => (
+            <div key={idx} className="col-span-2 flex flex-col md:flex-row gap-4 items-end bg-[#0c0e12] p-4 rounded-lg border border-gray-800">
+              <div className="w-full md:w-1/3">
+                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Nombre (Ej: LinkedIn)</label>
+                <input className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none" value={red.nombre} onChange={e => handleChangeRed(idx, 'nombre', e.target.value)} required />
+              </div>
+              <div className="w-full md:w-2/3">
+                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Enlace URL</label>
+                <div className="flex gap-2">
+                  <input className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none" placeholder="https://..." value={red.url} onChange={e => handleChangeRed(idx, 'url', e.target.value)} required />
+                  <button type="button" onClick={() => handleRemoveRed(idx)} className="p-2 text-red-500 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={18} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
 
           <button disabled={isUploading} className="col-span-2 bg-primary-container text-background font-bold py-4 mt-6 rounded-md hover:bg-white transition-colors uppercase tracking-widest text-sm disabled:opacity-50">
             Guardar Cambios del Perfil

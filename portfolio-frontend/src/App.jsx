@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw } from 'lucide-react';
+import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw, Link as LinkIcon } from 'lucide-react';
 import ReactGA from 'react-ga4';
 import api from './api';
 import AdminPanel from './Admin';
@@ -136,7 +136,8 @@ const Portfolio = () => {
 
   const [perfil, setPerfil] = useState({
     nombre: 'Mathias Villazón', titulo: 'Estudiante de Ingeniería de Sistemas', 
-    descripcion: 'Cargando información...', email: '', github_url: '', linkedin_url: ''
+    descripcion: 'Cargando información...', email: '', github_url: '', linkedin_url: '',
+    redes_sociales: '[]' // <-- CAMPO AÑADIDO
   });
 
   useEffect(() => {
@@ -154,7 +155,7 @@ const Portfolio = () => {
     }).catch(() => {});
   }, []);
 
-  // CARGAR PROYECTOS (CON PAGINACIÓN Y FILTROS DESDE EL BACKEND)
+  // CARGAR PROYECTOS
   useEffect(() => {
     cargarProyectos(0, filtroActivo, true);
   }, [filtroActivo]);
@@ -201,6 +202,9 @@ const Portfolio = () => {
     ReactGA.event({ category: "Projects", action: "View_Project_Details", label: proj.titulo });
   };
 
+  // Convertimos el JSON string en array para mapear las redes extra
+  const redesExtra = JSON.parse(perfil.redes_sociales || '[]');
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center">
@@ -219,7 +223,7 @@ const Portfolio = () => {
       
       <main className="px-6 md:px-12 max-w-7xl mx-auto relative z-10">
         
-        {/* HERO SECTION - REPARADO PARA CELULARES */}
+        {/* HERO SECTION */}
         <motion.section initial="hidden" animate="visible" variants={fadeUp} className="min-h-[90vh] flex flex-col md:flex-row items-center justify-center md:justify-between pt-28 pb-12 gap-8 md:gap-12" id="home">
           <div className="flex-1 flex flex-col justify-center text-center md:text-left items-center md:items-start order-2 md:order-1">
             <div className="flex items-center gap-4 mb-6 md:mb-8">
@@ -238,6 +242,8 @@ const Portfolio = () => {
                 {perfil.descripcion}
               </p>
             </div>
+
+            {/* SECCIÓN DE BOTONES: Incluye dinámicamente las Redes Sociales extra */}
             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-10 w-full">
               <a href="#projects" className="px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
                 Ver Proyectos
@@ -258,6 +264,16 @@ const Portfolio = () => {
                   <Code size={18} /> GitHub
                 </a>
               )}
+              {/* BOTONES GENERADOS DESDE LA BASE DE DATOS */}
+              {redesExtra.map((red, idx) => (
+                <a 
+                  key={idx} href={red.url} target="_blank" rel="noreferrer" 
+                  onClick={() => ReactGA.event({ category: "Outbound", action: `Click_${red.nombre}`, label: red.url })}
+                  className="px-6 py-3 md:px-8 md:py-4 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
+                >
+                  <LinkIcon size={18} /> {red.nombre}
+                </a>
+              ))}
             </div>
           </div>
 
