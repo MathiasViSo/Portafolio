@@ -9,8 +9,8 @@ class Proyecto(Base):
     descripcion = Column(Text)
     tecnologias = Column(String(255))
     categoria = Column(String(50))
-    url_repo = Column(String(255), nullable=True)
-    imagen_url = Column(String(255), nullable=True)
+    url_repo = Column(Text, nullable=True)     # <-- Cambiado a Text
+    imagen_url = Column(Text, nullable=True)   # <-- Cambiado a Text (Soporta múltiples URLs)
 
 class Perfil(Base):
     __tablename__ = "perfil"
@@ -18,7 +18,7 @@ class Perfil(Base):
     nombre = Column(String(100), default="Mathias_Villazón")
     titulo = Column(String(100), default="Estudiante de Ingeniería de Sistemas")
     descripcion = Column(Text, default="Perfil en construcción...")
-    imagen_url = Column(String(255), nullable=True)
+    imagen_url = Column(Text, nullable=True)   # <-- Cambiado a Text
     email = Column(String(100), default="mathiasvillazons@gmail.com")
     github_url = Column(String(255), default="https://github.com/MathiasViSo")
     linkedin_url = Column(String(255), nullable=True)
@@ -36,5 +36,4 @@ class Config(Base):
     __tablename__ = "configuracion"
     id = Column(Integer, primary_key=True, index=True)
     admin_password = Column(String, default="root_mathias_2026")
-    # --- NUEVA COLUMNA DE CATEGORÍAS DINÁMICAS ---
     categorias = Column(Text, default='["MOBILE", "WEB_APP", "BACKEND", "DESKTOP"]')

@@ -1,6 +1,6 @@
 import os
 import jwt
-import json # <-- NUEVA IMPORTACIÓN
+import json
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException, Header, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +15,7 @@ import cloudinary.uploader
 
 models.Base.metadata.create_all(bind=engine)
 
-# --- SCRIPT DE AUTO-MIGRACIÓN PARA REDES Y CATEGORÍAS ---
+# --- SCRIPT DE AUTO-MIGRACIÓN ---
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE perfil ADD COLUMN redes_sociales TEXT DEFAULT '[]'"))
@@ -26,6 +26,15 @@ except Exception:
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE configuracion ADD COLUMN categorias TEXT DEFAULT '[\"MOBILE\", \"WEB_APP\", \"BACKEND\", \"DESKTOP\"]'"))
+        conn.commit()
+except Exception:
+    pass
+
+# --- NUEVO SCRIPT: AMPLIAR TAMAÑO DE COLUMNAS DE IMÁGENES ---
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE proyectos ALTER COLUMN imagen_url TYPE TEXT;"))
+        conn.execute(text("ALTER TABLE perfil ALTER COLUMN imagen_url TYPE TEXT;"))
         conn.commit()
 except Exception:
     pass
@@ -126,7 +135,6 @@ class MensajeResponse(MensajeBase):
     class Config:
         from_attributes = True
 
-
 # --- RUTAS DE LOGIN Y CONFIGURACIÓN ---
 @app.post("/api/v1/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
@@ -152,7 +160,6 @@ def change_password(data: PasswordChangeRequest, db: Session = Depends(get_db), 
     db.commit()
     return {"status": "success", "message": "Contraseña actualizada correctamente"}
 
-# --- RUTAS DE CATEGORÍAS DINÁMICAS ---
 @app.get("/api/v1/categorias")
 def get_categorias(db: Session = Depends(get_db)):
     config = db.query(models.Config).first()
@@ -169,7 +176,6 @@ def update_categorias(data: CategoriasUpdate, db: Session = Depends(get_db), tok
     config.categorias = json.dumps(data.categorias)
     db.commit()
     return {"status": "success"}
-
 
 @app.post("/api/v1/upload")
 async def upload_image(file: UploadFile = File(...), token: str = Depends(verificar_admin)):
