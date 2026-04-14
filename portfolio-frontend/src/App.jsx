@@ -127,13 +127,11 @@ const Portfolio = () => {
   const [proyectoActivo, setProyectoActivo] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  
   const [filtroActivo, setFiltroActivo] = useState('TODOS');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const limit = 6;
 
-  // --- ESTADO PARA CATEGORÍAS DINÁMICAS ---
   const [categoriasDB, setCategoriasDB] = useState([]);
 
   const [perfil, setPerfil] = useState({
@@ -150,7 +148,6 @@ const Portfolio = () => {
   }, []);
 
   useEffect(() => {
-    // Cargamos perfil y categorías al mismo tiempo
     Promise.all([
       api.get('/perfil').catch(() => ({data: perfil})),
       api.get('/categorias').catch(() => ({data: ['MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP']}))
@@ -183,7 +180,6 @@ const Portfolio = () => {
     cargarProyectos(nextPage, filtroActivo, false);
   };
 
-  // Combinamos "TODOS" con las categorías de la base de datos
   const tabsFiltros = ['TODOS', ...categoriasDB];
 
   const getImagenes = (urlsString) => {
@@ -235,6 +231,7 @@ const Portfolio = () => {
               </p>
             </div>
             
+            {/* SECCIÓN 1: ACCIONES PRINCIPALES */}
             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-10 w-full">
               <a href="#projects" className="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
                 Ver Proyectos
@@ -248,6 +245,7 @@ const Portfolio = () => {
               </a>
             </div>
 
+            {/* SECCIÓN 2: REDES SOCIALES UNIFICADAS (Abajo de las acciones) */}
             <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-6 w-full">
               {perfil.github_url && (
                 <a 
@@ -268,6 +266,7 @@ const Portfolio = () => {
                 </a>
               ))}
             </div>
+
           </div>
 
           {perfil.imagen_url && (
@@ -429,5 +428,32 @@ const Portfolio = () => {
         </p>
       </footer>
     </div>
+  );
+};
+
+// ESTE ES EL BLOQUE QUE ESTABA FALTANDO AL FINAL
+export default function App() {
+  useEffect(() => {
+    const handleContextMenu = (e) => e.preventDefault();
+    const handleKeyDown = (e) => {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.shiftKey && e.key === 'J') || (e.ctrlKey && e.key === 'U') || (e.ctrlKey && e.key === 'S')) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Portfolio />} />
+        <Route path="/admin" element={<AdminPanel />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
