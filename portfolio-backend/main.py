@@ -1,10 +1,11 @@
 import os
 import jwt
+import json # <-- NUEVA IMPORTACIÓN
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException, Header, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import text # <-- IMPORTANTE
+from sqlalchemy import text 
 from pydantic import BaseModel
 from typing import List, Optional
 import models
@@ -12,16 +13,22 @@ from database import engine, get_db
 import cloudinary
 import cloudinary.uploader
 
-# Creamos las tablas normales
 models.Base.metadata.create_all(bind=engine)
 
-# --- SCRIPT DE AUTO-MIGRACIÓN (Protege tus datos) ---
+# --- SCRIPT DE AUTO-MIGRACIÓN PARA REDES Y CATEGORÍAS ---
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE perfil ADD COLUMN redes_sociales TEXT DEFAULT '[]'"))
         conn.commit()
 except Exception:
-    pass # Si la columna ya existe, simplemente ignora el error y continúa
+    pass
+
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE configuracion ADD COLUMN categorias TEXT DEFAULT '[\"MOBILE\", \"WEB_APP\", \"BACKEND\", \"DESKTOP\"]'"))
+        conn.commit()
+except Exception:
+    pass
 
 app = FastAPI()
 
@@ -74,6 +81,9 @@ class PasswordChangeRequest(BaseModel):
     current_password: str
     new_password: str
 
+class CategoriasUpdate(BaseModel):
+    categorias: List[str]
+
 class ProyectoBase(BaseModel):
     titulo: str
     descripcion: str
@@ -95,7 +105,7 @@ class PerfilBase(BaseModel):
     email: str
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None
-    redes_sociales: Optional[str] = "[]" # <-- NUEVO CAMPO
+    redes_sociales: Optional[str] = "[]"
 
 class PerfilResponse(PerfilBase):
     id: int
@@ -116,7 +126,8 @@ class MensajeResponse(MensajeBase):
     class Config:
         from_attributes = True
 
-# --- RUTAS DE LOGIN Y SEGURIDAD ---
+
+# --- RUTAS DE LOGIN Y CONFIGURACIÓN ---
 @app.post("/api/v1/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
     config = db.query(models.Config).first()
@@ -140,6 +151,25 @@ def change_password(data: PasswordChangeRequest, db: Session = Depends(get_db), 
     config.admin_password = data.new_password
     db.commit()
     return {"status": "success", "message": "Contraseña actualizada correctamente"}
+
+# --- RUTAS DE CATEGORÍAS DINÁMICAS ---
+@app.get("/api/v1/categorias")
+def get_categorias(db: Session = Depends(get_db)):
+    config = db.query(models.Config).first()
+    if config and config.categorias:
+        return json.loads(config.categorias)
+    return ["MOBILE", "WEB_APP", "BACKEND", "DESKTOP"]
+
+@app.put("/api/v1/categorias")
+def update_categorias(data: CategoriasUpdate, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
+    config = db.query(models.Config).first()
+    if not config:
+        config = models.Config(admin_password=ADMIN_SECRET_TOKEN)
+        db.add(config)
+    config.categorias = json.dumps(data.categorias)
+    db.commit()
+    return {"status": "success"}
+
 
 @app.post("/api/v1/upload")
 async def upload_image(file: UploadFile = File(...), token: str = Depends(verificar_admin)):

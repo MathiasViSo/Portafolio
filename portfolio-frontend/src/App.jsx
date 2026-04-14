@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw, Link as LinkIcon } from 'lucide-react';
 import ReactGA from 'react-ga4';
@@ -86,7 +86,7 @@ const Contact = ({ perfil }) => {
             <div className="flex items-center gap-4">
               <div className="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(209,188,255,0.6)]"></div>
               <div>
-                <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Correo Electrónico</p>
+                <p className="text-xs font-mono uppercase tracking-widest text-on-surface-variant mb-1">Correo Electrónico Principal</p>
                 <a href={`mailto:${perfil?.email || ''}`} className="text-on-surface font-headline hover:text-secondary transition-colors">
                   {perfil?.email || 'Cargando...'}
                 </a>
@@ -128,16 +128,17 @@ const Portfolio = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
-  // PAGINACIÓN Y FILTROS
   const [filtroActivo, setFiltroActivo] = useState('TODOS');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const limit = 6;
 
+  // --- ESTADO PARA CATEGORÍAS DINÁMICAS ---
+  const [categoriasDB, setCategoriasDB] = useState([]);
+
   const [perfil, setPerfil] = useState({
     nombre: 'Mathias Villazón', titulo: 'Estudiante de Ingeniería de Sistemas', 
-    descripcion: 'Cargando información...', email: '', github_url: '', linkedin_url: '',
-    redes_sociales: '[]' // <-- CAMPO AÑADIDO
+    descripcion: 'Cargando información...', email: '', github_url: '', linkedin_url: '', redes_sociales: '[]'
   });
 
   useEffect(() => {
@@ -148,33 +149,31 @@ const Portfolio = () => {
     }
   }, []);
 
-  // CARGAR PERFIL
   useEffect(() => {
-    api.get('/perfil').then(res => {
-      if(res.data.nombre) setPerfil(res.data);
-    }).catch(() => {});
+    // Cargamos perfil y categorías al mismo tiempo
+    Promise.all([
+      api.get('/perfil').catch(() => ({data: perfil})),
+      api.get('/categorias').catch(() => ({data: ['MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP']}))
+    ]).then(([resPerfil, resCat]) => {
+      if(resPerfil.data.nombre) setPerfil(resPerfil.data);
+      setCategoriasDB(resCat.data);
+    });
   }, []);
 
-  // CARGAR PROYECTOS
   useEffect(() => {
     cargarProyectos(0, filtroActivo, true);
   }, [filtroActivo]);
 
   const cargarProyectos = (paginaActual, categoria, resetData = false) => {
     if(!resetData) setIsLoadingMore(true);
-    
     let url = `/proyectos?skip=${paginaActual * limit}&limit=${limit}`;
     if(categoria !== 'TODOS') url += `&categoria=${categoria}`;
 
     api.get(url).then(res => {
-      if(res.data.length < limit) setHasMore(false);
-      else setHasMore(true);
-
+      setHasMore(res.data.length >= limit);
       if(resetData) setProyectos(res.data);
       else setProyectos(prev => [...prev, ...res.data]);
-      
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      setIsLoading(false); setIsLoadingMore(false);
     }).catch(() => { setIsLoading(false); setIsLoadingMore(false); });
   };
 
@@ -184,13 +183,8 @@ const Portfolio = () => {
     cargarProyectos(nextPage, filtroActivo, false);
   };
 
-  const handleCambioFiltro = (cat) => {
-    setFiltroActivo(cat);
-    setPage(0);
-    setHasMore(true);
-  };
-
-  const categorias = ['TODOS', 'MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP'];
+  // Combinamos "TODOS" con las categorías de la base de datos
+  const tabsFiltros = ['TODOS', ...categoriasDB];
 
   const getImagenes = (urlsString) => {
     if (!urlsString) return [];
@@ -202,7 +196,6 @@ const Portfolio = () => {
     ReactGA.event({ category: "Projects", action: "View_Project_Details", label: proj.titulo });
   };
 
-  // Convertimos el JSON string en array para mapear las redes extra
   const redesExtra = JSON.parse(perfil.redes_sociales || '[]');
 
   if (isLoading) {
@@ -223,7 +216,6 @@ const Portfolio = () => {
       
       <main className="px-6 md:px-12 max-w-7xl mx-auto relative z-10">
         
-        {/* HERO SECTION */}
         <motion.section initial="hidden" animate="visible" variants={fadeUp} className="min-h-[90vh] flex flex-col md:flex-row items-center justify-center md:justify-between pt-28 pb-12 gap-8 md:gap-12" id="home">
           <div className="flex-1 flex flex-col justify-center text-center md:text-left items-center md:items-start order-2 md:order-1">
             <div className="flex items-center gap-4 mb-6 md:mb-8">
@@ -242,42 +234,42 @@ const Portfolio = () => {
                 {perfil.descripcion}
               </p>
             </div>
-
-            {/* SECCIÓN DE BOTONES: Incluye dinámicamente las Redes Sociales extra */}
+            
             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-10 w-full">
-              <a href="#projects" className="px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
+              <a href="#projects" className="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
                 Ver Proyectos
               </a>
               <a 
                 href="/Mathias_Villazon_CV.pdf" download 
                 onClick={() => ReactGA.event({ category: "Engagement", action: "Download_CV" })}
-                className="px-6 py-3 md:px-8 md:py-4 bg-surface-container-highest border border-outline-variant/50 hover:border-secondary text-on-surface-variant hover:text-secondary font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
+                className="px-8 py-4 bg-surface-container-highest border border-outline-variant/50 hover:border-secondary text-on-surface-variant hover:text-secondary font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
               >
                 <FileText size={18} /> Descargar CV
               </a>
+            </div>
+
+            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-6 w-full">
               {perfil.github_url && (
                 <a 
                   href={perfil.github_url} target="_blank" rel="noreferrer" 
                   onClick={() => ReactGA.event({ category: "Outbound", action: "Click_GitHub", label: perfil.github_url })}
-                  className="px-6 py-3 md:px-8 md:py-4 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
+                  className="px-4 py-2 bg-[#1a1c20] border border-outline-variant/30 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-xs tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
                 >
-                  <Code size={18} /> GitHub
+                  <Code size={16} /> GitHub
                 </a>
               )}
-              {/* BOTONES GENERADOS DESDE LA BASE DE DATOS */}
               {redesExtra.map((red, idx) => (
                 <a 
                   key={idx} href={red.url} target="_blank" rel="noreferrer" 
                   onClick={() => ReactGA.event({ category: "Outbound", action: `Click_${red.nombre}`, label: red.url })}
-                  className="px-6 py-3 md:px-8 md:py-4 border border-outline-variant/50 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
+                  className="px-4 py-2 bg-[#1a1c20] border border-outline-variant/30 hover:border-primary-container text-on-surface-variant hover:text-primary-container font-headline font-bold text-xs tracking-widest uppercase rounded-sm transition-all duration-300 flex items-center gap-2"
                 >
-                  <LinkIcon size={18} /> {red.nombre}
+                  <LinkIcon size={16} /> {red.nombre}
                 </a>
               ))}
             </div>
           </div>
 
-          {/* IMAGEN DEL HERO VISIBLE EN CELULARES */}
           {perfil.imagen_url && (
             <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 relative group flex-shrink-0 mx-auto md:mx-0 order-1 md:order-2 mt-8 md:mt-0">
               <div className="absolute inset-0 bg-primary-container/20 rounded-full md:rounded-2xl blur-3xl group-hover:bg-primary-container/40 transition-colors duration-700"></div>
@@ -294,16 +286,19 @@ const Portfolio = () => {
               <h2 className="text-2xl font-headline font-bold text-on-surface tracking-[0.2em] uppercase">Proyectos Destacados</h2>
               <div className="w-20 h-1 bg-primary-container mt-4"></div>
             </div>
+            
+            {/* BOTONES DE FILTRO RENDERIZADOS DINÁMICAMENTE */}
             <div className="flex flex-wrap gap-2">
-              {categorias.map(cat => (
+              {tabsFiltros.map(cat => (
                 <button 
-                  key={cat} onClick={() => handleCambioFiltro(cat)}
+                  key={cat} onClick={() => { setFiltroActivo(cat); setPage(0); }}
                   className={`px-4 py-2 text-[10px] font-bold tracking-widest uppercase rounded-sm transition-all ${filtroActivo === cat ? 'bg-primary-container text-background' : 'border border-outline-variant/30 text-on-surface-variant hover:border-primary-container/50'}`}
                 >
-                  {cat}
+                  {cat.replace(/_/g, ' ')}
                 </button>
               ))}
             </div>
+
           </div>
           
           <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -331,7 +326,7 @@ const Portfolio = () => {
                         <p className="text-on-surface-variant text-sm mb-6 line-clamp-3 font-light leading-relaxed">{proj.descripcion}</p>
                         <div className="mt-auto">
                           <div className="flex flex-wrap gap-2 mb-6">
-                            <span className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-primary-container font-mono border border-primary-container/20">{proj.categoria}</span>
+                            <span className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-primary-container font-mono border border-primary-container/20">{proj.categoria.replace(/_/g, ' ')}</span>
                           </div>
                           <div className="flex items-center gap-2 text-primary-container text-xs font-bold tracking-widest opacity-70 group-hover:opacity-100 transition-opacity uppercase">
                             Ver Detalles <ExternalLink size={14} />
@@ -345,7 +340,6 @@ const Portfolio = () => {
             </AnimatePresence>
           </motion.div>
           
-          {/* BOTÓN DE CARGAR MÁS PROYECTOS */}
           {proyectos.length === 0 && !isLoadingMore && <p className="text-on-surface-variant text-sm italic mt-8 text-center">No se encontraron proyectos en esta categoría.</p>}
           
           {hasMore && proyectos.length > 0 && (
@@ -376,15 +370,11 @@ const Portfolio = () => {
               onClick={(e) => e.stopPropagation()}
               className="bg-surface border border-outline-variant/30 max-w-5xl w-full p-8 md:p-12 relative shadow-2xl max-h-[95vh] overflow-y-auto rounded-xl custom-scrollbar"
             >
-              <button onClick={() => setProyectoActivo(null)} className="absolute top-6 right-6 z-20 text-on-surface-variant hover:text-primary-container transition-colors p-2">
-                <X size={28} />
-              </button>
-              
+              <button onClick={() => setProyectoActivo(null)} className="absolute top-6 right-6 z-20 text-on-surface-variant hover:text-primary-container transition-colors p-2"><X size={28} /></button>
               <section className="mb-10">
-                <span className="text-xs font-bold tracking-widest text-primary-container uppercase block mb-2">{proyectoActivo.categoria}</span>
+                <span className="text-xs font-bold tracking-widest text-primary-container uppercase block mb-2">{proyectoActivo.categoria.replace(/_/g, ' ')}</span>
                 <h2 className="text-3xl md:text-5xl font-headline font-bold text-on-surface tracking-tighter pr-12">{proyectoActivo.titulo}</h2>
               </section>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div className="space-y-4">
                   {getImagenes(proyectoActivo.imagen_url).length > 0 && (
@@ -404,7 +394,6 @@ const Portfolio = () => {
                     </>
                   )}
                 </div>
-
                 <div className="space-y-8 flex flex-col justify-between">
                   <div>
                     <h3 className="font-headline text-xl text-on-surface mb-4 font-bold border-b border-outline-variant/30 pb-2">Descripción General</h3>
@@ -414,9 +403,7 @@ const Portfolio = () => {
                     <h3 className="font-headline text-lg text-on-surface mb-3 font-bold">Tecnologías Utilizadas</h3>
                     <div className="flex flex-wrap gap-2 mb-8">
                       {proyectoActivo.tecnologias.split(',').map((tech, i) => (
-                        <span key={i} className="bg-surface-container-high px-4 py-2 text-sm font-medium rounded-sm border border-outline-variant/20 text-on-surface">
-                          {tech.trim()}
-                        </span>
+                        <span key={i} className="bg-surface-container-high px-4 py-2 text-sm font-medium rounded-sm border border-outline-variant/20 text-on-surface">{tech.trim()}</span>
                       ))}
                     </div>
                     {proyectoActivo.url_repo && (
@@ -442,31 +429,5 @@ const Portfolio = () => {
         </p>
       </footer>
     </div>
-  );
-};
-
-export default function App() {
-  useEffect(() => {
-    const handleContextMenu = (e) => e.preventDefault();
-    const handleKeyDown = (e) => {
-      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.shiftKey && e.key === 'J') || (e.ctrlKey && e.key === 'U') || (e.ctrlKey && e.key === 'S')) {
-        e.preventDefault();
-      }
-    };
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Portfolio />} />
-        <Route path="/admin" element={<AdminPanel />} />
-      </Routes>
-    </BrowserRouter>
   );
 }

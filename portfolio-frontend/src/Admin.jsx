@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock, Plus, Trash2 } from 'lucide-react';
+import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock, Plus, Trash2, Tags } from 'lucide-react';
 import api from './api';
 
 const Toast = ({ message, type }) => (
@@ -33,19 +33,21 @@ export default function AdminPanel() {
 
   const [proyectos, setProyectos] = useState([]);
   const [mensajes, setMensajes] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [nuevaCategoria, setNuevaCategoria] = useState('');
+  
   const [msgPage, setMsgPage] = useState(0);
   const [hasMoreMsgs, setHasMoreMsgs] = useState(true);
   const msgLimit = 15;
 
   const [editingId, setEditingId] = useState(null);
   const [formProyecto, setFormProyecto] = useState({ 
-    titulo: '', descripcion: '', tecnologias: '', categoria: 'MOBILE', url_repo: '', imagen_url: '' 
+    titulo: '', descripcion: '', tecnologias: '', categoria: '', url_repo: '', imagen_url: '' 
   });
   const [perfil, setPerfil] = useState({
     nombre: '', titulo: '', descripcion: '', imagen_url: '', email: '', github_url: '', linkedin_url: '', redes_sociales: '[]'
   });
   
-  // ESTADO DINÁMICO PARA REDES SOCIALES EXTRA
   const [redesExtra, setRedesExtra] = useState([]);
 
   const getAuth = () => ({
@@ -56,7 +58,6 @@ export default function AdminPanel() {
     api.get(`/mensajes?skip=${pagina * msgLimit}&limit=${msgLimit}`, getAuth()).then(res => {
       if(res.data.length < msgLimit) setHasMoreMsgs(false);
       else setHasMoreMsgs(true);
-      
       if(reset) setMensajes(res.data);
       else setMensajes(prev => [...prev, ...res.data]);
     }).catch(() => {});
@@ -64,6 +65,10 @@ export default function AdminPanel() {
 
   const cargarDatos = () => {
     api.get('/proyectos?skip=0&limit=50').then(res => setProyectos(res.data)).catch(() => {});
+    api.get('/categorias').then(res => {
+        setCategorias(res.data);
+        if(res.data.length > 0) setFormProyecto(prev => ({...prev, categoria: res.data[0]}));
+    }).catch(() => {});
     api.get('/perfil').then(res => {
       setPerfil(res.data);
       setRedesExtra(JSON.parse(res.data.redes_sociales || '[]'));
@@ -74,10 +79,7 @@ export default function AdminPanel() {
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
-    if (token) {
-      setIsAuthenticated(true);
-      cargarDatos();
-    }
+    if (token) { setIsAuthenticated(true); cargarDatos(); }
   }, []);
 
   const login = async (e) => {
@@ -91,46 +93,33 @@ export default function AdminPanel() {
     } catch (error) { showToast("Credenciales inválidas.", "error"); }
   };
 
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    if (passForm.new !== passForm.confirm) return showToast("Las contraseñas no coinciden", "error");
-    
-    try {
-      await api.put('/admin/password', {
-        current_password: passForm.current,
-        new_password: passForm.new
-      }, getAuth());
-      showToast("Contraseña actualizada. Inicia sesión de nuevo.");
-      setTimeout(() => logout(), 2000);
-    } catch (error) {
-      showToast(error.response?.data?.detail || "Error al cambiar contraseña", "error");
-    }
-  };
-
   const logout = () => {
     localStorage.removeItem('admin_token');
     setIsAuthenticated(false);
     window.location.reload();
   };
 
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    if (passForm.new !== passForm.confirm) return showToast("Las contraseñas no coinciden", "error");
+    try {
+      await api.put('/admin/password', { current_password: passForm.current, new_password: passForm.new }, getAuth());
+      showToast("Contraseña actualizada. Inicia sesión de nuevo.");
+      setTimeout(() => logout(), 2000);
+    } catch (error) { showToast(error.response?.data?.detail || "Error", "error"); }
+  };
+
   const handleImageUpload = async (e, target) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-
     try {
-      const res = await api.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data', 'x-token': localStorage.getItem('admin_token') }
-      });
+      const res = await api.post('/upload', formData, { headers: { 'Content-Type': 'multipart/form-data', 'x-token': localStorage.getItem('admin_token') }});
       const newUrl = res.data.url;
-      if (target === 'proyecto') {
-        setFormProyecto(prev => ({ ...prev, imagen_url: prev.imagen_url ? `${prev.imagen_url}, ${newUrl}` : newUrl }));
-      } else if (target === 'perfil') {
-        setPerfil(prev => ({ ...prev, imagen_url: newUrl }));
-      }
+      if (target === 'proyecto') setFormProyecto(prev => ({ ...prev, imagen_url: prev.imagen_url ? `${prev.imagen_url}, ${newUrl}` : newUrl }));
+      else if (target === 'perfil') setPerfil(prev => ({ ...prev, imagen_url: newUrl }));
       showToast("Imagen subida exitosamente");
     } catch (error) { showToast("Error subiendo imagen.", "error"); } 
     finally { setIsUploading(false); e.target.value = null; }
@@ -138,6 +127,7 @@ export default function AdminPanel() {
 
   const handleSubmitProyecto = async (e) => {
     e.preventDefault();
+    if (!formProyecto.categoria) return showToast("Debes seleccionar o crear una categoría", "error");
     try {
       if (editingId) {
         await api.put(`/proyectos/${editingId}`, formProyecto, getAuth());
@@ -146,7 +136,7 @@ export default function AdminPanel() {
         await api.post('/proyectos', formProyecto, getAuth());
         showToast("Proyecto creado");
       }
-      setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: 'MOBILE', url_repo: '', imagen_url: '' });
+      setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: categorias[0] || '', url_repo: '', imagen_url: '' });
       setEditingId(null);
       cargarDatos();
     } catch (error) { showToast("Error al guardar", "error"); }
@@ -177,11 +167,32 @@ export default function AdminPanel() {
         await api.delete(`/mensajes/${id}`, getAuth());
         showToast("Mensaje eliminado");
         setMensajes(prev => prev.filter(m => m.id !== id));
-      } catch (error) { showToast("Error al eliminar mensaje", "error"); }
+      } catch (error) { showToast("Error al eliminar", "error"); }
     }
   };
 
-  // --- GESTIÓN DE REDES EXTRA ---
+  // --- GESTIÓN DE CATEGORÍAS ---
+  const handleAddCategoria = () => {
+    if(!nuevaCategoria.trim()) return;
+    const nombre = nuevaCategoria.trim().toUpperCase().replace(/ /g, '_');
+    if(categorias.includes(nombre)) return showToast("La categoría ya existe", "error");
+    setCategorias([...categorias, nombre]);
+    setNuevaCategoria('');
+  };
+
+  const handleRemoveCategoria = (cat) => {
+    setCategorias(categorias.filter(c => c !== cat));
+  };
+
+  const handleSaveCategorias = async () => {
+    try {
+      await api.put('/categorias', { categorias }, getAuth());
+      showToast("Categorías guardadas correctamente");
+      cargarDatos();
+    } catch (error) { showToast("Error al guardar", "error"); }
+  };
+
+  // --- GESTIÓN DE REDES ---
   const handleAddRed = () => setRedesExtra([...redesExtra, { nombre: '', url: '' }]);
   const handleRemoveRed = (idx) => setRedesExtra(redesExtra.filter((_, i) => i !== idx));
   const handleChangeRed = (idx, field, value) => {
@@ -193,7 +204,6 @@ export default function AdminPanel() {
   const handleSubmitPerfil = async (e) => {
     e.preventDefault();
     try {
-      // Empaquetamos el array de redes extra en un string JSON antes de enviar
       const payload = { ...perfil, redes_sociales: JSON.stringify(redesExtra) };
       await api.put('/perfil', payload, getAuth());
       showToast("Perfil actualizado");
@@ -213,11 +223,7 @@ export default function AdminPanel() {
             <h2 className="text-2xl font-bold text-white uppercase tracking-tighter">Terminal de Acceso</h2>
             <p className="text-on-surface-variant text-sm">Identifícate para gestionar el sistema</p>
           </div>
-          <input 
-            type="password" placeholder="Clave Maestra" autoFocus
-            className="w-full bg-[#0c0e12] border border-gray-700 p-4 rounded-xl text-white text-center focus:border-primary-container outline-none transition-all mb-6" 
-            value={authKey} onChange={(e) => setAuthKey(e.target.value)} 
-          />
+          <input type="password" placeholder="Clave Maestra" autoFocus className="w-full bg-[#0c0e12] border border-gray-700 p-4 rounded-xl text-white text-center focus:border-primary-container outline-none transition-all mb-6" value={authKey} onChange={(e) => setAuthKey(e.target.value)} />
           <button className="w-full bg-primary-container text-background font-bold py-4 rounded-xl hover:brightness-110 transition-all uppercase tracking-widest text-sm shadow-lg shadow-primary-container/10">Desbloquear Sistema</button>
         </form>
       </div>
@@ -234,7 +240,7 @@ export default function AdminPanel() {
           <p className="text-on-surface-variant text-sm mt-1">Control total de arquitectura y contenidos</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {['proyectos', 'perfil', 'mensajes', 'seguridad'].map((tab) => (
+          {['proyectos', 'categorias', 'perfil', 'mensajes', 'seguridad'].map((tab) => (
             <button 
               key={tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-2.5 font-bold text-xs uppercase rounded-lg transition-all ${activeTab === tab ? 'bg-primary-container text-background' : 'bg-surface-container-high text-gray-400 hover:text-white'}`}
@@ -245,6 +251,41 @@ export default function AdminPanel() {
           <button onClick={logout} className="px-5 py-2.5 text-red-400 text-xs font-bold uppercase hover:bg-red-500/10 rounded-lg ml-2">Cerrar Sesión</button>
         </div>
       </div>
+
+      {activeTab === 'categorias' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+          <div className="bg-[#1a1c20] p-8 rounded-2xl border border-outline-variant/20 shadow-xl">
+            <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">
+              <Tags className="text-primary-container" />
+              <h3 className="text-xl font-bold">Gestión de Categorías</h3>
+            </div>
+            
+            <div className="flex gap-4 mb-8">
+              <input 
+                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-[#00f0ff] outline-none text-white uppercase" 
+                placeholder="NUEVA_CATEGORIA" value={nuevaCategoria} onChange={e => setNuevaCategoria(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleAddCategoria()}
+              />
+              <button onClick={handleAddCategoria} className="bg-gray-800 text-white px-6 font-bold uppercase text-xs rounded-lg hover:bg-gray-700 transition-colors whitespace-nowrap">Añadir</button>
+            </div>
+
+            <div className="space-y-3 mb-8">
+              {categorias.length === 0 ? <p className="text-gray-500 text-sm">No hay categorías. Añade una para empezar.</p> : null}
+              {categorias.map(cat => (
+                <div key={cat} className="flex justify-between items-center bg-[#0c0e12] p-4 rounded-lg border border-gray-800">
+                  <span className="font-mono text-sm font-bold text-primary-container">{cat}</span>
+                  <button onClick={() => handleRemoveCategoria(cat)} className="text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors"><Trash2 size={16}/></button>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={handleSaveCategorias} className="w-full bg-primary-container text-background font-bold py-4 rounded-xl hover:brightness-110 transition-all uppercase text-xs tracking-widest">
+              Guardar Cambios de Categorías
+            </button>
+            <p className="text-gray-500 text-xs mt-4 text-center">No olvides "Guardar Cambios" después de añadir o eliminar categorías.</p>
+          </div>
+        </motion.div>
+      )}
 
       {activeTab === 'seguridad' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
@@ -312,20 +353,20 @@ export default function AdminPanel() {
           <form onSubmit={handleSubmitProyecto} className="bg-[#1a1c20] p-8 rounded-xl border border-outline-variant/20 mb-8 grid grid-cols-2 gap-6 shadow-lg">
             <div className="col-span-2 flex justify-between items-center border-b border-gray-800 pb-4 mb-2">
               <h3 className="text-lg font-bold text-white">{editingId ? 'Editar Proyecto Existente' : 'Registrar Nuevo Proyecto'}</h3>
-              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: 'MOBILE', url_repo: '', imagen_url: '' })}} className="text-red-400 text-sm font-bold hover:underline">Cancelar Edición</button>}
+              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: categorias[0]||'', url_repo: '', imagen_url: '' })}} className="text-red-400 text-sm font-bold hover:underline">Cancelar Edición</button>}
             </div>
 
             <div className="col-span-2 md:col-span-1">
               <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Título del Proyecto</label>
               <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={formProyecto.titulo} onChange={e => setFormProyecto({...formProyecto, titulo: e.target.value})} required />
             </div>
+            
+            {/* SELECT DINÁMICO CON LAS CATEGORÍAS */}
             <div className="col-span-2 md:col-span-1">
               <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Categoría</label>
-              <select className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md text-gray-300 focus:border-[#00f0ff] outline-none" value={formProyecto.categoria} onChange={e => setFormProyecto({...formProyecto, categoria: e.target.value})}>
-                <option value="MOBILE">Aplicación Móvil</option>
-                <option value="WEB_APP">Aplicación Web</option>
-                <option value="BACKEND">Backend & API</option>
-                <option value="DESKTOP">Software de Escritorio</option>
+              <select className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md text-gray-300 focus:border-[#00f0ff] outline-none" value={formProyecto.categoria} onChange={e => setFormProyecto({...formProyecto, categoria: e.target.value})} required>
+                {categorias.length === 0 && <option value="">Crea una categoría primero</option>}
+                {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
 
@@ -355,7 +396,7 @@ export default function AdminPanel() {
               <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-20 focus:border-[#00f0ff] outline-none resize-none text-sm" placeholder="https://...jpg, https://...png" value={formProyecto.imagen_url} onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})} />
             </div>
             
-            <button disabled={isUploading} className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm disabled:opacity-50 ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}>
+            <button disabled={isUploading || categorias.length === 0} className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm disabled:opacity-50 ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}>
               {editingId ? 'Guardar Cambios del Proyecto' : 'Publicar Nuevo Proyecto'}
             </button>
           </form>
@@ -424,7 +465,6 @@ export default function AdminPanel() {
             <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={perfil.github_url || ''} onChange={e => setPerfil({...perfil, github_url: e.target.value})} />
           </div>
 
-          {/* SECCIÓN NUEVA: REDES DINÁMICAS */}
           <div className="col-span-2 border-b border-gray-800 pb-4 mb-2 mt-4 flex justify-between items-center">
             <h3 className="text-lg font-bold text-white">Redes Sociales Extra</h3>
             <button type="button" onClick={handleAddRed} className="flex items-center gap-2 text-xs font-bold bg-gray-800 text-white px-3 py-1.5 rounded hover:bg-gray-700 transition-colors">

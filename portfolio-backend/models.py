@@ -22,7 +22,7 @@ class Perfil(Base):
     email = Column(String(100), default="mathiasvillazons@gmail.com")
     github_url = Column(String(255), default="https://github.com/MathiasViSo")
     linkedin_url = Column(String(255), nullable=True)
-    redes_sociales = Column(Text, default="[]") # <-- NUEVA COLUMNA DINÁMICA
+    redes_sociales = Column(Text, default="[]") 
 
 class Mensaje(Base):
     __tablename__ = "mensajes"
@@ -36,3 +36,5 @@ class Config(Base):
     __tablename__ = "configuracion"
     id = Column(Integer, primary_key=True, index=True)
     admin_password = Column(String, default="root_mathias_2026")
+    # --- NUEVA COLUMNA DE CATEGORÍAS DINÁMICAS ---
+    categorias = Column(Text, default='["MOBILE", "WEB_APP", "BACKEND", "DESKTOP"]')
