@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock, Plus, Trash2, Tags } from 'lucide-react';
+import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock, Plus, Trash2, Tags, ClipboardPaste } from 'lucide-react';
 import api from './api';
 
 const Toast = ({ message, type }) => (
@@ -109,8 +109,8 @@ export default function AdminPanel() {
     } catch (error) { showToast(error.response?.data?.detail || "Error", "error"); }
   };
 
-  const handleImageUpload = async (e, target) => {
-    const file = e.target.files[0];
+  // --- LÓGICA MEJORADA DE SUBIDA DE IMÁGENES (Soporta archivos directos) ---
+  const procesarSubidaImagen = async (file, target) => {
     if (!file) return;
     setIsUploading(true);
     const formData = new FormData();
@@ -122,7 +122,23 @@ export default function AdminPanel() {
       else if (target === 'perfil') setPerfil(prev => ({ ...prev, imagen_url: newUrl }));
       showToast("Imagen subida exitosamente");
     } catch (error) { showToast("Error subiendo imagen.", "error"); } 
-    finally { setIsUploading(false); e.target.value = null; }
+    finally { setIsUploading(false); }
+  };
+
+  // --- NUEVA LÓGICA: INTERCEPTAR EL PORTAPAPELES (CTRL+V) ---
+  const handlePasteImage = (e, target) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (let i = 0; i < items.length; i++) {
+      // Si el elemento pegado es una imagen (ej: un recorte de pantalla o imagen copiada de la web)
+      if (items[i].type.indexOf('image') !== -1) {
+        e.preventDefault(); // Evitamos que intente pegar texto raro en el input
+        const file = items[i].getAsFile();
+        procesarSubidaImagen(file, target);
+        break; // Solo subimos una imagen a la vez por cada Ctrl+V
+      }
+    }
   };
 
   const handleSubmitProyecto = async (e) => {
@@ -361,7 +377,6 @@ export default function AdminPanel() {
               <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={formProyecto.titulo} onChange={e => setFormProyecto({...formProyecto, titulo: e.target.value})} required />
             </div>
             
-            {/* SELECT DINÁMICO CON LAS CATEGORÍAS */}
             <div className="col-span-2 md:col-span-1">
               <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Categoría</label>
               <select className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md text-gray-300 focus:border-[#00f0ff] outline-none" value={formProyecto.categoria} onChange={e => setFormProyecto({...formProyecto, categoria: e.target.value})} required>
@@ -387,13 +402,38 @@ export default function AdminPanel() {
             
             <div className="col-span-2">
               <div className="flex justify-between items-end mb-2">
-                <label className="block text-xs uppercase tracking-wider text-gray-400">URLs de las Imágenes</label>
-                <input type="file" accept="image/*" className="hidden" ref={fileInputRefProyecto} onChange={(e) => handleImageUpload(e, 'proyecto')} />
+                <label className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-400">
+                  URLs de las Imágenes 
+                  <span className="text-[#00f0ff] bg-[#00f0ff]/10 px-2 py-0.5 rounded text-[10px]">¡NUEVO: Pega imágenes aquí con Ctrl+V!</span>
+                </label>
+                <input 
+                  type="file" accept="image/*" className="hidden" ref={fileInputRefProyecto} 
+                  onChange={(e) => { procesarSubidaImagen(e.target.files[0], 'proyecto'); e.target.value = null; }} 
+                />
                 <button type="button" disabled={isUploading} onClick={() => fileInputRefProyecto.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
-                  {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir a Cloudinary
+                  {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir Carpeta
                 </button>
               </div>
-              <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-20 focus:border-[#00f0ff] outline-none resize-none text-sm" placeholder="https://...jpg, https://...png" value={formProyecto.imagen_url} onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})} />
+              
+              <div className="relative">
+                {isUploading && (
+                  <div className="absolute inset-0 bg-[#0c0e12]/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-md border border-[#00f0ff]">
+                    <span className="flex items-center gap-2 text-[#00f0ff] font-bold text-sm tracking-widest uppercase">
+                      <Loader2 size={18} className="animate-spin"/> Subiendo a Cloudinary...
+                    </span>
+                  </div>
+                )}
+                {/* TEXTAREA MÁGICO CON onPaste */}
+                <textarea 
+                  className="w-full bg-[#0c0e12] border border-gray-800 p-4 rounded-md h-28 focus:border-[#00f0ff] outline-none resize-none text-sm transition-all" 
+                  placeholder="Aquí aparecerán las URLs... &#10;También puedes hacer CLIC AQUÍ y presionar Ctrl+V (o Cmd+V) para pegar una imagen directamente desde tu portapapeles." 
+                  value={formProyecto.imagen_url} 
+                  onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})}
+                  onPaste={(e) => handlePasteImage(e, 'proyecto')}
+                />
+                <ClipboardPaste className="absolute bottom-3 right-3 text-gray-700 pointer-events-none opacity-50" size={24} />
+              </div>
+              <span className="text-gray-500 text-[10px] mt-2 block">Las URLs generadas se separan automáticamente por comas.</span>
             </div>
             
             <button disabled={isUploading || categorias.length === 0} className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm disabled:opacity-50 ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}>
@@ -443,13 +483,36 @@ export default function AdminPanel() {
 
           <div className="col-span-2">
             <div className="flex justify-between items-end mb-2">
-              <label className="block text-xs uppercase tracking-wider text-gray-400">URL Foto de Perfil</label>
-              <input type="file" accept="image/*" className="hidden" ref={fileInputRefPerfil} onChange={(e) => handleImageUpload(e, 'perfil')} />
+              <label className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-400">
+                URL Foto de Perfil
+                <span className="text-[#00f0ff] bg-[#00f0ff]/10 px-2 py-0.5 rounded text-[10px]">Ctrl+V habilitado</span>
+              </label>
+              <input 
+                type="file" accept="image/*" className="hidden" ref={fileInputRefPerfil} 
+                onChange={(e) => { procesarSubidaImagen(e.target.files[0], 'perfil'); e.target.value = null; }} 
+              />
               <button type="button" disabled={isUploading} onClick={() => fileInputRefPerfil.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
-                {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir a Cloudinary
+                {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir
               </button>
             </div>
-            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-sm" value={perfil.imagen_url || ''} onChange={e => setPerfil({...perfil, imagen_url: e.target.value})} />
+            
+            <div className="relative">
+               {isUploading && (
+                  <div className="absolute inset-0 bg-[#0c0e12]/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-md border border-[#00f0ff]">
+                    <span className="flex items-center gap-2 text-[#00f0ff] font-bold text-sm tracking-widest uppercase">
+                      <Loader2 size={16} className="animate-spin"/> Subiendo...
+                    </span>
+                  </div>
+                )}
+              {/* TEXTAREA MÁGICO CON onPaste */}
+              <input 
+                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-sm" 
+                placeholder="Pega una URL o haz clic aquí y presiona Ctrl+V para pegar una foto..." 
+                value={perfil.imagen_url || ''} 
+                onChange={e => setPerfil({...perfil, imagen_url: e.target.value})} 
+                onPaste={(e) => handlePasteImage(e, 'perfil')}
+              />
+            </div>
           </div>
 
           <div className="col-span-2 border-b border-gray-800 pb-4 mb-2 mt-4">
