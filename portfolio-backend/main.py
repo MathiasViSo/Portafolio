@@ -59,6 +59,10 @@ def verificar_admin(x_token: str = Header(...)):
 class LoginRequest(BaseModel):
     password: str
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 class ProyectoBase(BaseModel):
     titulo: str
     descripcion: str
@@ -100,13 +104,30 @@ class MensajeResponse(MensajeBase):
     class Config:
         from_attributes = True
 
-# --- RUTAS DE LOGIN Y UPLOAD ---
+# --- RUTAS DE LOGIN Y SEGURIDAD ---
 @app.post("/api/v1/login")
-def login(data: LoginRequest):
-    if data.password == ADMIN_SECRET_TOKEN:
+def login(data: LoginRequest, db: Session = Depends(get_db)):
+    config = db.query(models.Config).first()
+    if not config:
+        config = models.Config(admin_password=ADMIN_SECRET_TOKEN)
+        db.add(config)
+        db.commit()
+        db.refresh(config)
+        
+    if data.password == config.admin_password:
         token = crear_token()
         return {"access_token": token}
     raise HTTPException(status_code=401, detail="Acceso denegado")
+
+@app.put("/api/v1/admin/password")
+def change_password(data: PasswordChangeRequest, db: Session = Depends(get_db), token: str = Depends(verificar_admin)):
+    config = db.query(models.Config).first()
+    if data.current_password != config.admin_password:
+        raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
+    
+    config.admin_password = data.new_password
+    db.commit()
+    return {"status": "success", "message": "Contraseña actualizada correctamente"}
 
 @app.post("/api/v1/upload")
 async def upload_image(file: UploadFile = File(...), token: str = Depends(verificar_admin)):
@@ -139,15 +160,12 @@ def actualizar_perfil(perfil_data: PerfilBase, db: Session = Depends(get_db), to
     db.refresh(perfil)
     return perfil
 
-# --- RUTAS DE PROYECTOS (CON PAGINACIÓN Y FILTRO DB) ---
+# --- RUTAS DE PROYECTOS ---
 @app.get("/api/v1/proyectos", response_model=List[ProyectoResponse])
 def leer_proyectos(skip: int = 0, limit: int = 6, categoria: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(models.Proyecto)
-    # Si nos envían una categoría específica, filtramos directamente en la Base de Datos
     if categoria and categoria != "TODOS":
         query = query.filter(models.Proyecto.categoria == categoria)
-    
-    # Ordenamos por los más recientes y aplicamos paginación
     return query.order_by(models.Proyecto.id.desc()).offset(skip).limit(limit).all()
 
 @app.post("/api/v1/proyectos", response_model=ProyectoResponse)
@@ -178,7 +196,7 @@ def eliminar_proyecto(id: int, db: Session = Depends(get_db), token: str = Depen
     db.commit()
     return {"status": "success"}
 
-# --- RUTAS DE MENSAJES (CON PAGINACIÓN) ---
+# --- RUTAS DE MENSAJES ---
 @app.post("/api/v1/mensajes", response_model=MensajeResponse)
 def crear_mensaje(mensaje: MensajeCreate, db: Session = Depends(get_db)):
     db_mensaje = models.Mensaje(**mensaje.model_dump())

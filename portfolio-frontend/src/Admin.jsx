@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, UploadCloud, Loader2, RefreshCw } from 'lucide-react';
+import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock } from 'lucide-react';
 import api from './api';
 
 const Toast = ({ message, type }) => (
@@ -20,6 +20,9 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('proyectos');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [isUploading, setIsUploading] = useState(false);
+
+  // ESTADOS PARA CONTRASEÑA
+  const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
 
   const fileInputRefProyecto = useRef(null);
   const fileInputRefPerfil = useRef(null);
@@ -60,10 +63,8 @@ export default function AdminPanel() {
   };
 
   const cargarDatos = () => {
-    // Para el admin cargamos 50 proyectos para editarlos fácilmente (sin paginación compleja aquí)
     api.get('/proyectos?skip=0&limit=50').then(res => setProyectos(res.data)).catch(() => {});
     api.get('/perfil').then(res => setPerfil(res.data)).catch(() => {});
-    
     setMsgPage(0);
     cargarMensajes(0, true);
   };
@@ -83,14 +84,30 @@ export default function AdminPanel() {
       localStorage.setItem('admin_token', res.data.access_token);
       setIsAuthenticated(true);
       cargarDatos();
-      showToast("Acceso concedido al panel");
-    } catch (error) { showToast("Credenciales incorrectas.", "error"); }
+      showToast("Bienvenido, Mathias");
+    } catch (error) { showToast("Credenciales inválidas.", "error"); }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    if (passForm.new !== passForm.confirm) return showToast("Las contraseñas no coinciden", "error");
+    
+    try {
+      await api.put('/admin/password', {
+        current_password: passForm.current,
+        new_password: passForm.new
+      }, getAuth());
+      showToast("Contraseña actualizada. Inicia sesión de nuevo.");
+      setTimeout(() => logout(), 2000);
+    } catch (error) {
+      showToast(error.response?.data?.detail || "Error al cambiar contraseña", "error");
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('admin_token');
     setIsAuthenticated(false);
-    showToast("Sesión cerrada");
+    window.location.reload();
   };
 
   const handleImageUpload = async (e, target) => {
@@ -159,7 +176,6 @@ export default function AdminPanel() {
       try {
         await api.delete(`/mensajes/${id}`, getAuth());
         showToast("Mensaje eliminado");
-        // Refrescamos la lista de mensajes sin perder los que ya cargamos
         setMensajes(prev => prev.filter(m => m.id !== id));
       } catch (error) { showToast("Error al eliminar mensaje", "error"); }
     }
@@ -176,42 +192,76 @@ export default function AdminPanel() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#111318] flex items-center justify-center font-body text-white">
+      <div className="min-h-screen bg-[#111318] flex items-center justify-center p-6 font-body">
         <AnimatePresence>{toast.show && <Toast message={toast.message} type={toast.type} />}</AnimatePresence>
-        <form onSubmit={login} className="bg-[#1a1c20] p-10 rounded-xl border border-outline-variant/30 flex flex-col gap-6 text-center w-full max-w-sm shadow-2xl">
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Acceso Restringido</h2>
-            <p className="text-on-surface-variant text-sm">Ingresa tu clave de administrador</p>
+        <form onSubmit={login} className="bg-[#1a1c20] p-10 rounded-2xl border border-outline-variant/20 w-full max-w-md shadow-2xl text-center">
+          <div className="mb-8">
+            <div className="w-16 h-16 bg-primary-container/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary-container/30">
+              <Lock className="text-primary-container" size={28} />
+            </div>
+            <h2 className="text-2xl font-bold text-white uppercase tracking-tighter">Terminal de Acceso</h2>
+            <p className="text-on-surface-variant text-sm">Identifícate para gestionar el sistema</p>
           </div>
           <input 
-            type="password" placeholder="Contraseña" 
-            className="bg-[#0c0e12] border border-gray-700 p-3 rounded-md text-white text-center focus:border-[#00f0ff] outline-none transition-colors" 
+            type="password" placeholder="Clave Maestra" autoFocus
+            className="w-full bg-[#0c0e12] border border-gray-700 p-4 rounded-xl text-white text-center focus:border-primary-container outline-none transition-all mb-6" 
             value={authKey} onChange={(e) => setAuthKey(e.target.value)} 
           />
-          <button className="bg-primary-container text-background font-bold py-3 rounded-md hover:bg-white transition-colors uppercase tracking-widest text-sm">Entrar al Panel</button>
+          <button className="w-full bg-primary-container text-background font-bold py-4 rounded-xl hover:brightness-110 transition-all uppercase tracking-widest text-sm shadow-lg shadow-primary-container/10">Desbloquear Sistema</button>
         </form>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#111318] font-body p-4 md:p-8 text-white max-w-5xl mx-auto">
+    <div className="min-h-screen bg-[#111318] font-body p-4 md:p-8 text-white max-w-6xl mx-auto">
       <AnimatePresence>{toast.show && <Toast message={toast.message} type={toast.type} />}</AnimatePresence>
       
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-gray-800 pb-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 gap-6 border-b border-gray-800 pb-8">
         <div>
-          <h2 className="text-3xl text-white font-bold tracking-tight">Panel de Administración</h2>
-          <p className="text-on-surface-variant text-sm mt-1">Gestiona tu portafolio público</p>
+          <h2 className="text-3xl font-bold tracking-tighter">Panel de Gestión</h2>
+          <p className="text-on-surface-variant text-sm mt-1">Control total de arquitectura y contenidos</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-4 md:mt-0">
-          <button onClick={() => setActiveTab('proyectos')} className={`px-4 py-2 font-bold text-sm uppercase rounded-md transition-all ${activeTab === 'proyectos' ? 'bg-primary-container/10 text-primary-container' : 'text-gray-400 hover:bg-gray-800'}`}>Proyectos</button>
-          <button onClick={() => setActiveTab('perfil')} className={`px-4 py-2 font-bold text-sm uppercase rounded-md transition-all ${activeTab === 'perfil' ? 'bg-primary-container/10 text-primary-container' : 'text-gray-400 hover:bg-gray-800'}`}>Mi Perfil</button>
-          <button onClick={() => setActiveTab('mensajes')} className={`px-4 py-2 font-bold text-sm uppercase rounded-md transition-all flex items-center gap-2 ${activeTab === 'mensajes' ? 'bg-primary-container/10 text-primary-container' : 'text-gray-400 hover:bg-gray-800'}`}>
-             Bandeja <span className="bg-primary-container text-background px-2 rounded-full text-xs">{mensajes.length}</span>
-          </button>
-          <button onClick={logout} className="text-red-400 text-sm hover:text-red-300 ml-4 font-bold">Salir</button>
+        <div className="flex flex-wrap gap-2">
+          {['proyectos', 'perfil', 'mensajes', 'seguridad'].map((tab) => (
+            <button 
+              key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-5 py-2.5 font-bold text-xs uppercase rounded-lg transition-all ${activeTab === tab ? 'bg-primary-container text-background' : 'bg-surface-container-high text-gray-400 hover:text-white'}`}
+            >
+              {tab === 'mensajes' ? `Bandeja (${mensajes.length})` : tab}
+            </button>
+          ))}
+          <button onClick={logout} className="px-5 py-2.5 text-red-400 text-xs font-bold uppercase hover:bg-red-500/10 rounded-lg ml-2">Cerrar Sesión</button>
         </div>
       </div>
+
+      {activeTab === 'seguridad' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
+          <div className="bg-[#1a1c20] p-8 rounded-2xl border border-outline-variant/20 shadow-xl">
+            <div className="flex items-center gap-3 mb-8 border-b border-gray-800 pb-4">
+              <ShieldCheck className="text-primary-container" />
+              <h3 className="text-xl font-bold">Seguridad de Acceso</h3>
+            </div>
+            <form onSubmit={handlePasswordChange} className="space-y-5">
+              <div>
+                <label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Contraseña Actual</label>
+                <input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.current} onChange={e => setPassForm({...passForm, current: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Nueva Contraseña</label>
+                <input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.new} onChange={e => setPassForm({...passForm, new: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Confirmar Nueva Contraseña</label>
+                <input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.confirm} onChange={e => setPassForm({...passForm, confirm: e.target.value})} />
+              </div>
+              <button className="w-full bg-primary-container text-background font-bold py-4 rounded-xl mt-4 hover:brightness-110 transition-all uppercase text-xs tracking-widest">
+                Actualizar Credenciales
+              </button>
+            </form>
+          </div>
+        </motion.div>
+      )}
 
       {activeTab === 'mensajes' && (
         <div>
