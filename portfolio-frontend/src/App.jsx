@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw, Link as LinkIcon } from 'lucide-react';
 import ReactGA from 'react-ga4';
+import ReactMarkdown from 'react-markdown'; // <-- NUEVA IMPORTACIÓN
 import api from './api';
 import AdminPanel from './Admin';
 
@@ -231,7 +232,6 @@ const Portfolio = () => {
               </p>
             </div>
             
-            {/* SECCIÓN 1: ACCIONES PRINCIPALES */}
             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-10 w-full">
               <a href="#projects" className="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-background font-headline font-bold text-xs md:text-sm tracking-widest uppercase rounded-sm shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all duration-300">
                 Ver Proyectos
@@ -245,7 +245,6 @@ const Portfolio = () => {
               </a>
             </div>
 
-            {/* SECCIÓN 2: REDES SOCIALES UNIFICADAS (Abajo de las acciones) */}
             <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-6 w-full">
               {perfil.github_url && (
                 <a 
@@ -266,7 +265,6 @@ const Portfolio = () => {
                 </a>
               ))}
             </div>
-
           </div>
 
           {perfil.imagen_url && (
@@ -286,7 +284,6 @@ const Portfolio = () => {
               <div className="w-20 h-1 bg-primary-container mt-4"></div>
             </div>
             
-            {/* BOTONES DE FILTRO RENDERIZADOS DINÁMICAMENTE */}
             <div className="flex flex-wrap gap-2">
               {tabsFiltros.map(cat => (
                 <button 
@@ -394,10 +391,31 @@ const Portfolio = () => {
                   )}
                 </div>
                 <div className="space-y-8 flex flex-col justify-between">
+                  
+                  {/* AQUÍ SE INYECTA EL MOTOR MARKDOWN PARA LA DESCRIPCIÓN */}
                   <div>
                     <h3 className="font-headline text-xl text-on-surface mb-4 font-bold border-b border-outline-variant/30 pb-2">Descripción General</h3>
-                    <p className="text-base text-on-surface-variant leading-relaxed font-light whitespace-pre-wrap">{proyectoActivo.descripcion}</p>
+                    
+                    <ReactMarkdown
+                      components={{
+                        ul: ({node, ...props}) => <ul className="space-y-3 mt-4 mb-6" {...props} />,
+                        li: ({node, ...props}) => (
+                          <li className="flex items-start gap-3 text-on-surface-variant leading-relaxed font-light text-base">
+                            <span className="text-primary-container mt-1.5 flex-shrink-0 text-xs">◈</span>
+                            <span>{props.children}</span>
+                          </li>
+                        ),
+                        strong: ({node, ...props}) => <strong className="font-bold text-on-surface text-primary-container/90" {...props} />,
+                        p: ({node, ...props}) => <p className="mb-4 text-base text-on-surface-variant leading-relaxed font-light" {...props} />,
+                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-on-surface mt-6 mb-3" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-xl font-bold text-on-surface mt-6 mb-3" {...props} />,
+                      }}
+                    >
+                      {proyectoActivo.descripcion}
+                    </ReactMarkdown>
+
                   </div>
+
                   <div>
                     <h3 className="font-headline text-lg text-on-surface mb-3 font-bold">Tecnologías Utilizadas</h3>
                     <div className="flex flex-wrap gap-2 mb-8">
@@ -431,7 +449,6 @@ const Portfolio = () => {
   );
 };
 
-// ESTE ES EL BLOQUE QUE ESTABA FALTANDO AL FINAL
 export default function App() {
   useEffect(() => {
     const handleContextMenu = (e) => e.preventDefault();

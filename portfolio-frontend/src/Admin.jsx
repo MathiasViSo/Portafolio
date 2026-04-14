@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock, Plus, Trash2, Tags, ClipboardPaste } from 'lucide-react';
+import { X, Mail, UploadCloud, Loader2, RefreshCw, ShieldCheck, Lock, Plus, Trash2, Tags, ClipboardPaste, Eye, Edit3 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import api from './api';
 
 const Toast = ({ message, type }) => (
@@ -20,6 +21,9 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('proyectos');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [isUploading, setIsUploading] = useState(false);
+  
+  // ESTADO PARA LA VISTA PREVIA DE MARKDOWN
+  const [showPreview, setShowPreview] = useState(false);
 
   const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
 
@@ -50,9 +54,7 @@ export default function AdminPanel() {
   
   const [redesExtra, setRedesExtra] = useState([]);
 
-  const getAuth = () => ({
-    headers: { 'x-token': localStorage.getItem('admin_token') }
-  });
+  const getAuth = () => ({ headers: { 'x-token': localStorage.getItem('admin_token') } });
 
   const cargarMensajes = (pagina, reset = false) => {
     api.get(`/mensajes?skip=${pagina * msgLimit}&limit=${msgLimit}`, getAuth()).then(res => {
@@ -109,7 +111,6 @@ export default function AdminPanel() {
     } catch (error) { showToast(error.response?.data?.detail || "Error", "error"); }
   };
 
-  // --- LÓGICA MEJORADA DE SUBIDA DE IMÁGENES (Soporta archivos directos) ---
   const procesarSubidaImagen = async (file, target) => {
     if (!file) return;
     setIsUploading(true);
@@ -125,18 +126,15 @@ export default function AdminPanel() {
     finally { setIsUploading(false); }
   };
 
-  // --- NUEVA LÓGICA: INTERCEPTAR EL PORTAPAPELES (CTRL+V) ---
   const handlePasteImage = (e, target) => {
     const items = e.clipboardData?.items;
     if (!items) return;
-    
     for (let i = 0; i < items.length; i++) {
-      // Si el elemento pegado es una imagen (ej: un recorte de pantalla o imagen copiada de la web)
       if (items[i].type.indexOf('image') !== -1) {
-        e.preventDefault(); // Evitamos que intente pegar texto raro en el input
+        e.preventDefault(); 
         const file = items[i].getAsFile();
         procesarSubidaImagen(file, target);
-        break; // Solo subimos una imagen a la vez por cada Ctrl+V
+        break; 
       }
     }
   };
@@ -154,12 +152,14 @@ export default function AdminPanel() {
       }
       setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: categorias[0] || '', url_repo: '', imagen_url: '' });
       setEditingId(null);
+      setShowPreview(false); // Reiniciamos la vista previa
       cargarDatos();
     } catch (error) { showToast("Error al guardar", "error"); }
   };
 
   const iniciarEdicion = (proyecto) => {
     setEditingId(proyecto.id);
+    setShowPreview(false); // Entramos en modo edición por defecto
     setFormProyecto({
       titulo: proyecto.titulo, descripcion: proyecto.descripcion, tecnologias: proyecto.tecnologias,
       categoria: proyecto.categoria, url_repo: proyecto.url_repo || '', imagen_url: proyecto.imagen_url || ''
@@ -187,7 +187,6 @@ export default function AdminPanel() {
     }
   };
 
-  // --- GESTIÓN DE CATEGORÍAS ---
   const handleAddCategoria = () => {
     if(!nuevaCategoria.trim()) return;
     const nombre = nuevaCategoria.trim().toUpperCase().replace(/ /g, '_');
@@ -208,7 +207,6 @@ export default function AdminPanel() {
     } catch (error) { showToast("Error al guardar", "error"); }
   };
 
-  // --- GESTIÓN DE REDES ---
   const handleAddRed = () => setRedesExtra([...redesExtra, { nombre: '', url: '' }]);
   const handleRemoveRed = (idx) => setRedesExtra(redesExtra.filter((_, i) => i !== idx));
   const handleChangeRed = (idx, field, value) => {
@@ -298,7 +296,6 @@ export default function AdminPanel() {
             <button onClick={handleSaveCategorias} className="w-full bg-primary-container text-background font-bold py-4 rounded-xl hover:brightness-110 transition-all uppercase text-xs tracking-widest">
               Guardar Cambios de Categorías
             </button>
-            <p className="text-gray-500 text-xs mt-4 text-center">No olvides "Guardar Cambios" después de añadir o eliminar categorías.</p>
           </div>
         </motion.div>
       )}
@@ -369,49 +366,88 @@ export default function AdminPanel() {
           <form onSubmit={handleSubmitProyecto} className="bg-[#1a1c20] p-8 rounded-xl border border-outline-variant/20 mb-8 grid grid-cols-2 gap-6 shadow-lg">
             <div className="col-span-2 flex justify-between items-center border-b border-gray-800 pb-4 mb-2">
               <h3 className="text-lg font-bold text-white">{editingId ? 'Editar Proyecto Existente' : 'Registrar Nuevo Proyecto'}</h3>
-              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: categorias[0]||'', url_repo: '', imagen_url: '' })}} className="text-red-400 text-sm font-bold hover:underline">Cancelar Edición</button>}
+              {editingId && <button type="button" onClick={() => {setEditingId(null); setShowPreview(false); setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: categorias[0]||'', url_repo: '', imagen_url: '' })}} className="text-red-400 text-sm font-bold hover:underline">Cancelar Edición</button>}
             </div>
 
             <div className="col-span-2 md:col-span-1">
               <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Título del Proyecto</label>
-              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={formProyecto.titulo} onChange={e => setFormProyecto({...formProyecto, titulo: e.target.value})} required />
+              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" value={formProyecto.titulo} onChange={e => setFormProyecto({...formProyecto, titulo: e.target.value})} required />
             </div>
             
             <div className="col-span-2 md:col-span-1">
               <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Categoría</label>
               <select className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md text-gray-300 focus:border-[#00f0ff] outline-none" value={formProyecto.categoria} onChange={e => setFormProyecto({...formProyecto, categoria: e.target.value})} required>
                 {categorias.length === 0 && <option value="">Crea una categoría primero</option>}
-                {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                {categorias.map(cat => <option key={cat} value={cat}>{cat.replace(/_/g, ' ')}</option>)}
               </select>
             </div>
 
+            {/* SECCIÓN MARKDOWN CON VISTA PREVIA */}
             <div className="col-span-2">
-              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Descripción Detallada</label>
-              <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-32 focus:border-[#00f0ff] outline-none resize-none" value={formProyecto.descripcion} onChange={e => setFormProyecto({...formProyecto, descripcion: e.target.value})} required />
+              <div className="flex justify-between items-end mb-2">
+                <label className="block text-xs uppercase tracking-wider text-gray-400">Descripción Detallada</label>
+                <button 
+                  type="button" 
+                  onClick={() => setShowPreview(!showPreview)} 
+                  className="flex items-center gap-2 text-xs font-bold bg-gray-800 text-white px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
+                >
+                  {showPreview ? <><Edit3 size={14}/> Editar Código</> : <><Eye size={14}/> Ver Resultado Visual</>}
+                </button>
+              </div>
+              
+              {showPreview ? (
+                <div className="w-full bg-[#0c0e12] border border-[#00f0ff]/50 p-4 rounded-md h-40 overflow-y-auto custom-scrollbar text-sm shadow-[0_0_15px_rgba(0,240,255,0.05)]">
+                  <ReactMarkdown
+                      components={{
+                        ul: ({node, ...props}) => <ul className="space-y-3 mt-4 mb-6" {...props} />,
+                        li: ({node, ...props}) => (
+                          <li className="flex items-start gap-3 text-gray-300 leading-relaxed font-light text-sm">
+                            <span className="text-primary-container mt-1.5 flex-shrink-0 text-[10px]">◈</span>
+                            <span>{props.children}</span>
+                          </li>
+                        ),
+                        strong: ({node, ...props}) => <strong className="font-bold text-white text-primary-container/90" {...props} />,
+                        p: ({node, ...props}) => <p className="mb-4 text-sm text-gray-300 leading-relaxed font-light" {...props} />,
+                        h1: ({node, ...props}) => <h1 className="text-lg font-bold text-white mt-4 mb-2" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-base font-bold text-white mt-4 mb-2" {...props} />,
+                      }}
+                    >
+                      {formProyecto.descripcion || '*No hay contenido para mostrar...*'}
+                    </ReactMarkdown>
+                </div>
+              ) : (
+                <textarea 
+                  className="w-full bg-[#0c0e12] border border-gray-800 p-4 rounded-md h-40 focus:border-[#00f0ff] outline-none resize-none text-sm font-mono text-gray-300" 
+                  placeholder="Escribe usando Markdown...&#10;&#10;**Texto en negrita**&#10;* Primera viñeta&#10;* Segunda viñeta" 
+                  value={formProyecto.descripcion} 
+                  onChange={e => setFormProyecto({...formProyecto, descripcion: e.target.value})} 
+                  required 
+                />
+              )}
             </div>
 
             <div className="col-span-2 md:col-span-1">
               <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Tecnologías Utilizadas</label>
-              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" placeholder="Ej: Flutter, Firebase, Dart" value={formProyecto.tecnologias} onChange={e => setFormProyecto({...formProyecto, tecnologias: e.target.value})} required />
+              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" placeholder="Ej: Flutter, Firebase, Dart" value={formProyecto.tecnologias} onChange={e => setFormProyecto({...formProyecto, tecnologias: e.target.value})} required />
             </div>
             
             <div className="col-span-2 md:col-span-1">
               <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Enlace al Repositorio</label>
-              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" placeholder="https://github.com/..." value={formProyecto.url_repo} onChange={e => setFormProyecto({...formProyecto, url_repo: e.target.value})} />
+              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" placeholder="https://github.com/..." value={formProyecto.url_repo} onChange={e => setFormProyecto({...formProyecto, url_repo: e.target.value})} />
             </div>
             
             <div className="col-span-2">
               <div className="flex justify-between items-end mb-2">
                 <label className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-400">
                   URLs de las Imágenes 
-                  <span className="text-[#00f0ff] bg-[#00f0ff]/10 px-2 py-0.5 rounded text-[10px]">¡NUEVO: Pega imágenes aquí con Ctrl+V!</span>
+                  <span className="text-[#00f0ff] bg-[#00f0ff]/10 px-2 py-0.5 rounded text-[10px]">Ctrl+V habilitado</span>
                 </label>
                 <input 
                   type="file" accept="image/*" className="hidden" ref={fileInputRefProyecto} 
                   onChange={(e) => { procesarSubidaImagen(e.target.files[0], 'proyecto'); e.target.value = null; }} 
                 />
                 <button type="button" disabled={isUploading} onClick={() => fileInputRefProyecto.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
-                  {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir Carpeta
+                  {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir Archivo
                 </button>
               </div>
               
@@ -419,21 +455,19 @@ export default function AdminPanel() {
                 {isUploading && (
                   <div className="absolute inset-0 bg-[#0c0e12]/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-md border border-[#00f0ff]">
                     <span className="flex items-center gap-2 text-[#00f0ff] font-bold text-sm tracking-widest uppercase">
-                      <Loader2 size={18} className="animate-spin"/> Subiendo a Cloudinary...
+                      <Loader2 size={18} className="animate-spin"/> Subiendo...
                     </span>
                   </div>
                 )}
-                {/* TEXTAREA MÁGICO CON onPaste */}
                 <textarea 
-                  className="w-full bg-[#0c0e12] border border-gray-800 p-4 rounded-md h-28 focus:border-[#00f0ff] outline-none resize-none text-sm transition-all" 
-                  placeholder="Aquí aparecerán las URLs... &#10;También puedes hacer CLIC AQUÍ y presionar Ctrl+V (o Cmd+V) para pegar una imagen directamente desde tu portapapeles." 
+                  className="w-full bg-[#0c0e12] border border-gray-800 p-4 rounded-md h-28 focus:border-[#00f0ff] outline-none resize-none text-sm transition-all text-gray-300" 
+                  placeholder="Aquí aparecerán las URLs... &#10;También puedes hacer CLIC AQUÍ y presionar Ctrl+V para pegar una imagen." 
                   value={formProyecto.imagen_url} 
                   onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})}
                   onPaste={(e) => handlePasteImage(e, 'proyecto')}
                 />
                 <ClipboardPaste className="absolute bottom-3 right-3 text-gray-700 pointer-events-none opacity-50" size={24} />
               </div>
-              <span className="text-gray-500 text-[10px] mt-2 block">Las URLs generadas se separan automáticamente por comas.</span>
             </div>
             
             <button disabled={isUploading || categorias.length === 0} className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm disabled:opacity-50 ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}>
@@ -448,7 +482,7 @@ export default function AdminPanel() {
                 <div key={p.id} className="flex flex-col md:flex-row md:items-center justify-between bg-[#1a1c20] border border-gray-800 p-5 rounded-lg hover:border-gray-600 transition-colors">
                   <div>
                     <span className="text-base font-bold text-white block md:inline">{p.titulo}</span>
-                    <span className="text-xs text-primary-container md:ml-3 bg-primary-container/10 px-2 py-1 rounded">{p.categoria}</span>
+                    <span className="text-xs text-primary-container md:ml-3 bg-primary-container/10 px-2 py-1 rounded">{p.categoria.replace(/_/g, ' ')}</span>
                   </div>
                   <div className="flex gap-4 mt-4 md:mt-0">
                     <button onClick={() => iniciarEdicion(p)} className="text-yellow-500 hover:text-yellow-400 text-sm font-bold">Editar</button>
@@ -469,23 +503,22 @@ export default function AdminPanel() {
           
           <div className="col-span-2 md:col-span-1">
             <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Nombre Completo</label>
-            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={perfil.nombre} onChange={e => setPerfil({...perfil, nombre: e.target.value})} required />
+            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" value={perfil.nombre} onChange={e => setPerfil({...perfil, nombre: e.target.value})} required />
           </div>
           <div className="col-span-2 md:col-span-1">
             <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Título Profesional</label>
-            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={perfil.titulo} onChange={e => setPerfil({...perfil, titulo: e.target.value})} required />
+            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" value={perfil.titulo} onChange={e => setPerfil({...perfil, titulo: e.target.value})} required />
           </div>
           
           <div className="col-span-2">
             <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Perfil Profesional</label>
-            <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-32 focus:border-[#00f0ff] outline-none resize-none" value={perfil.descripcion} onChange={e => setPerfil({...perfil, descripcion: e.target.value})} required />
+            <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md h-32 focus:border-[#00f0ff] outline-none resize-none text-white" value={perfil.descripcion} onChange={e => setPerfil({...perfil, descripcion: e.target.value})} required />
           </div>
 
           <div className="col-span-2">
             <div className="flex justify-between items-end mb-2">
               <label className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-400">
                 URL Foto de Perfil
-                <span className="text-[#00f0ff] bg-[#00f0ff]/10 px-2 py-0.5 rounded text-[10px]">Ctrl+V habilitado</span>
               </label>
               <input 
                 type="file" accept="image/*" className="hidden" ref={fileInputRefPerfil} 
@@ -504,9 +537,8 @@ export default function AdminPanel() {
                     </span>
                   </div>
                 )}
-              {/* TEXTAREA MÁGICO CON onPaste */}
               <input 
-                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-sm" 
+                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-sm text-gray-300" 
                 placeholder="Pega una URL o haz clic aquí y presiona Ctrl+V para pegar una foto..." 
                 value={perfil.imagen_url || ''} 
                 onChange={e => setPerfil({...perfil, imagen_url: e.target.value})} 
@@ -521,11 +553,11 @@ export default function AdminPanel() {
 
           <div className="col-span-2 md:col-span-1">
             <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Correo Electrónico</label>
-            <input type="email" className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={perfil.email} onChange={e => setPerfil({...perfil, email: e.target.value})} required />
+            <input type="email" className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" value={perfil.email} onChange={e => setPerfil({...perfil, email: e.target.value})} required />
           </div>
           <div className="col-span-2 md:col-span-1">
             <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Enlace de GitHub</label>
-            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none" value={perfil.github_url || ''} onChange={e => setPerfil({...perfil, github_url: e.target.value})} />
+            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" value={perfil.github_url || ''} onChange={e => setPerfil({...perfil, github_url: e.target.value})} />
           </div>
 
           <div className="col-span-2 border-b border-gray-800 pb-4 mb-2 mt-4 flex justify-between items-center">
