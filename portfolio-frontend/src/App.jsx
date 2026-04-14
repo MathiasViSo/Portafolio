@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw, Link as LinkIcon } from 'lucide-react';
+import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw, Link as LinkIcon, ZoomIn } from 'lucide-react';
 import ReactGA from 'react-ga4';
-import ReactMarkdown from 'react-markdown'; // <-- NUEVA IMPORTACIÓN
+import ReactMarkdown from 'react-markdown';
 import api from './api';
 import AdminPanel from './Admin';
 
@@ -126,6 +126,10 @@ const Contact = ({ perfil }) => {
 const Portfolio = () => {
   const [proyectos, setProyectos] = useState([]);
   const [proyectoActivo, setProyectoActivo] = useState(null);
+  
+  // NUEVO ESTADO PARA EL VISOR DE IMÁGENES A PANTALLA COMPLETA
+  const [imagenAmpliada, setImagenAmpliada] = useState(null);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [filtroActivo, setFiltroActivo] = useState('TODOS');
@@ -310,7 +314,8 @@ const Portfolio = () => {
                     <div className="relative bg-surface-container-low h-full flex flex-col">
                       {imagenes.length > 0 ? (
                         <div className="relative h-48 overflow-hidden">
-                          <img alt={proj.titulo} src={imagenes[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+                          {/* object-top asegura que siempre se vea la cabecera de las páginas web */}
+                          <img alt={proj.titulo} src={imagenes[0]} className="w-full h-full object-cover object-top opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                         </div>
                       ) : (
                         <div className="relative h-48 bg-surface-container-highest border-b border-outline-variant/20 flex flex-col items-center justify-center">
@@ -354,6 +359,7 @@ const Portfolio = () => {
         <Contact perfil={perfil} />
       </main>
       
+      {/* MODAL DE DETALLES DEL PROYECTO */}
       <AnimatePresence>
         {proyectoActivo && (
           <motion.div 
@@ -371,18 +377,35 @@ const Portfolio = () => {
                 <span className="text-xs font-bold tracking-widest text-primary-container uppercase block mb-2">{proyectoActivo.categoria.replace(/_/g, ' ')}</span>
                 <h2 className="text-3xl md:text-5xl font-headline font-bold text-on-surface tracking-tighter pr-12">{proyectoActivo.titulo}</h2>
               </section>
+              
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div className="space-y-4">
                   {getImagenes(proyectoActivo.imagen_url).length > 0 && (
                     <>
-                      <div className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg bg-surface-container-lowest">
-                         <img src={getImagenes(proyectoActivo.imagen_url)[0]} alt={proyectoActivo.titulo} className="w-full h-auto object-cover" />
+                      {/* IMAGEN PRINCIPAL (Click para ampliar) */}
+                      <div 
+                        className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg bg-surface-container-lowest cursor-zoom-in group relative"
+                        onClick={() => setImagenAmpliada(getImagenes(proyectoActivo.imagen_url)[0])}
+                      >
+                         <img src={getImagenes(proyectoActivo.imagen_url)[0]} alt={proyectoActivo.titulo} className="w-full h-auto object-cover object-top group-hover:scale-[1.02] transition-transform duration-500" />
+                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                           <span className="bg-black/60 text-white px-4 py-2 rounded-full text-xs font-bold tracking-widest backdrop-blur-sm flex items-center gap-2"><ZoomIn size={16}/> Ampliar</span>
+                         </div>
                       </div>
+                      
+                      {/* MINIATURAS ADICIONALES (Click para ampliar) */}
                       {getImagenes(proyectoActivo.imagen_url).length > 1 && (
                         <div className="grid grid-cols-2 gap-4">
                           {getImagenes(proyectoActivo.imagen_url).slice(1).map((imgUrl, idx) => (
-                            <div key={idx} className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md h-32 md:h-40 bg-surface-container-lowest">
-                               <img src={imgUrl} alt={`${proyectoActivo.titulo} - vista ${idx + 2}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
+                            <div 
+                              key={idx} 
+                              className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md h-32 md:h-40 bg-surface-container-lowest cursor-zoom-in group relative"
+                              onClick={() => setImagenAmpliada(imgUrl)}
+                            >
+                               <img src={imgUrl} alt={`${proyectoActivo.titulo} - vista ${idx + 2}`} className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-500" />
+                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                 <ZoomIn size={24} className="text-white opacity-80" />
+                               </div>
                             </div>
                           ))}
                         </div>
@@ -390,12 +413,10 @@ const Portfolio = () => {
                     </>
                   )}
                 </div>
+                
                 <div className="space-y-8 flex flex-col justify-between">
-                  
-                  {/* AQUÍ SE INYECTA EL MOTOR MARKDOWN PARA LA DESCRIPCIÓN */}
                   <div>
                     <h3 className="font-headline text-xl text-on-surface mb-4 font-bold border-b border-outline-variant/30 pb-2">Descripción General</h3>
-                    
                     <ReactMarkdown
                       components={{
                         ul: ({node, ...props}) => <ul className="space-y-3 mt-4 mb-6" {...props} />,
@@ -413,9 +434,7 @@ const Portfolio = () => {
                     >
                       {proyectoActivo.descripcion}
                     </ReactMarkdown>
-
                   </div>
-
                   <div>
                     <h3 className="font-headline text-lg text-on-surface mb-3 font-bold">Tecnologías Utilizadas</h3>
                     <div className="flex flex-wrap gap-2 mb-8">
@@ -436,6 +455,33 @@ const Portfolio = () => {
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* NUEVO: LIGHTBOX (VISOR A PANTALLA COMPLETA) */}
+      <AnimatePresence>
+        {imagenAmpliada && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-[#0c0e12]/95 backdrop-blur-md flex justify-center overflow-y-auto p-4 md:p-10 cursor-zoom-out custom-scrollbar"
+            onClick={() => setImagenAmpliada(null)}
+          >
+            <button 
+              onClick={() => setImagenAmpliada(null)} 
+              className="fixed top-6 right-6 z-[110] text-white/70 hover:text-[#00F0FF] transition-colors bg-black/40 p-3 rounded-full backdrop-blur-sm"
+            >
+              <X size={28} />
+            </button>
+            
+            <motion.img
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+              src={imagenAmpliada}
+              alt="Vista ampliada"
+              // my-auto permite centrarla verticalmente. max-w-5xl limita el ancho para que no se deforme en monitores ultrawide.
+              className="w-full max-w-5xl h-auto object-contain my-auto rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] cursor-default"
+              onClick={(e) => e.stopPropagation()} // Permite hacer scroll sobre la imagen sin que se cierre
+            />
           </motion.div>
         )}
       </AnimatePresence>
