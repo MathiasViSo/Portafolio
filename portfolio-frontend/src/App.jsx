@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw, Link as LinkIcon, ZoomIn } from 'lucide-react';
+import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw, Link as LinkIcon, ZoomIn, ChevronLeft, ChevronRight } from 'lucide-react';
 import ReactGA from 'react-ga4';
 import ReactMarkdown from 'react-markdown';
 import api from './api';
@@ -127,8 +127,8 @@ const Portfolio = () => {
   const [proyectos, setProyectos] = useState([]);
   const [proyectoActivo, setProyectoActivo] = useState(null);
   
-  // NUEVO ESTADO PARA EL VISOR DE IMÁGENES A PANTALLA COMPLETA
-  const [imagenAmpliada, setImagenAmpliada] = useState(null);
+  // NUEVO: Estado del Lightbox con Carrusel
+  const [lightbox, setLightbox] = useState({ isOpen: false, index: 0, images: [] });
   
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -155,6 +155,7 @@ const Portfolio = () => {
   useEffect(() => {
     Promise.all([
       api.get('/perfil').catch(() => ({data: perfil})),
+      // Si la BD aún no devuelve categorías dinámicas, dejamos un fallback temporal.
       api.get('/categorias').catch(() => ({data: ['MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP']}))
     ]).then(([resPerfil, resCat]) => {
       if(resPerfil.data.nombre) setPerfil(resPerfil.data);
@@ -195,6 +196,17 @@ const Portfolio = () => {
   const abrirProyecto = (proj) => {
     setProyectoActivo(proj);
     ReactGA.event({ category: "Projects", action: "View_Project_Details", label: proj.titulo });
+  };
+
+  // Funciones de navegación del Lightbox
+  const nextImage = (e) => {
+    e.stopPropagation();
+    setLightbox(prev => ({ ...prev, index: (prev.index + 1) % prev.images.length }));
+  };
+
+  const prevImage = (e) => {
+    e.stopPropagation();
+    setLightbox(prev => ({ ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length }));
   };
 
   const redesExtra = JSON.parse(perfil.redes_sociales || '[]');
@@ -314,7 +326,6 @@ const Portfolio = () => {
                     <div className="relative bg-surface-container-low h-full flex flex-col">
                       {imagenes.length > 0 ? (
                         <div className="relative h-48 overflow-hidden">
-                          {/* object-top asegura que siempre se vea la cabecera de las páginas web */}
                           <img alt={proj.titulo} src={imagenes[0]} className="w-full h-full object-cover object-top opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                         </div>
                       ) : (
@@ -326,9 +337,16 @@ const Portfolio = () => {
                         <h3 className="font-headline text-xl font-bold text-on-surface mb-4 group-hover:text-primary-container transition-colors">{proj.titulo}</h3>
                         <p className="text-on-surface-variant text-sm mb-6 line-clamp-3 font-light leading-relaxed">{proj.descripcion}</p>
                         <div className="mt-auto">
+                          
+                          {/* NUEVO: Soporte para Múltiples Categorías en las tarjetas */}
                           <div className="flex flex-wrap gap-2 mb-6">
-                            <span className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-primary-container font-mono border border-primary-container/20">{proj.categoria.replace(/_/g, ' ')}</span>
+                            {proj.categoria.split(',').map((cat, i) => (
+                              <span key={i} className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-primary-container font-mono border border-primary-container/20">
+                                {cat.trim().replace(/_/g, ' ')}
+                              </span>
+                            ))}
                           </div>
+
                           <div className="flex items-center gap-2 text-primary-container text-xs font-bold tracking-widest opacity-70 group-hover:opacity-100 transition-opacity uppercase">
                             Ver Detalles <ExternalLink size={14} />
                           </div>
@@ -374,7 +392,16 @@ const Portfolio = () => {
             >
               <button onClick={() => setProyectoActivo(null)} className="absolute top-6 right-6 z-20 text-on-surface-variant hover:text-primary-container transition-colors p-2"><X size={28} /></button>
               <section className="mb-10">
-                <span className="text-xs font-bold tracking-widest text-primary-container uppercase block mb-2">{proyectoActivo.categoria.replace(/_/g, ' ')}</span>
+                
+                {/* NUEVO: Soporte para Múltiples Categorías en el Modal */}
+                <div className="flex flex-wrap gap-2 mb-2">
+                   {proyectoActivo.categoria.split(',').map((cat, i) => (
+                       <span key={i} className="text-xs font-bold tracking-widest text-primary-container uppercase block">
+                         {cat.trim().replace(/_/g, ' ')}
+                       </span>
+                   ))}
+                </div>
+
                 <h2 className="text-3xl md:text-5xl font-headline font-bold text-on-surface tracking-tighter pr-12">{proyectoActivo.titulo}</h2>
               </section>
               
@@ -382,10 +409,10 @@ const Portfolio = () => {
                 <div className="space-y-4">
                   {getImagenes(proyectoActivo.imagen_url).length > 0 && (
                     <>
-                      {/* IMAGEN PRINCIPAL (Click para ampliar) */}
+                      {/* IMAGEN PRINCIPAL (Abre el Lightbox en el índice 0) */}
                       <div 
                         className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg bg-surface-container-lowest cursor-zoom-in group relative"
-                        onClick={() => setImagenAmpliada(getImagenes(proyectoActivo.imagen_url)[0])}
+                        onClick={() => setLightbox({ isOpen: true, index: 0, images: getImagenes(proyectoActivo.imagen_url) })}
                       >
                          <img src={getImagenes(proyectoActivo.imagen_url)[0]} alt={proyectoActivo.titulo} className="w-full h-auto object-cover object-top group-hover:scale-[1.02] transition-transform duration-500" />
                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -393,14 +420,14 @@ const Portfolio = () => {
                          </div>
                       </div>
                       
-                      {/* MINIATURAS ADICIONALES (Click para ampliar) */}
+                      {/* MINIATURAS ADICIONALES (Abre el Lightbox en el índice correspondiente) */}
                       {getImagenes(proyectoActivo.imagen_url).length > 1 && (
                         <div className="grid grid-cols-2 gap-4">
                           {getImagenes(proyectoActivo.imagen_url).slice(1).map((imgUrl, idx) => (
                             <div 
                               key={idx} 
                               className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md h-32 md:h-40 bg-surface-container-lowest cursor-zoom-in group relative"
-                              onClick={() => setImagenAmpliada(imgUrl)}
+                              onClick={() => setLightbox({ isOpen: true, index: idx + 1, images: getImagenes(proyectoActivo.imagen_url) })}
                             >
                                <img src={imgUrl} alt={`${proyectoActivo.titulo} - vista ${idx + 2}`} className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-500" />
                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -459,29 +486,54 @@ const Portfolio = () => {
         )}
       </AnimatePresence>
 
-      {/* NUEVO: LIGHTBOX (VISOR A PANTALLA COMPLETA) */}
+      {/* NUEVO: LIGHTBOX CON CARRUSEL INTEGRADO */}
       <AnimatePresence>
-        {imagenAmpliada && (
+        {lightbox.isOpen && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-[#0c0e12]/95 backdrop-blur-md flex justify-center overflow-y-auto p-4 md:p-10 cursor-zoom-out custom-scrollbar"
-            onClick={() => setImagenAmpliada(null)}
+            className="fixed inset-0 z-[100] bg-[#0c0e12]/95 backdrop-blur-md flex items-center justify-center p-4 select-none"
+            onClick={() => setLightbox({ isOpen: false, index: 0, images: [] })}
           >
-            <button 
-              onClick={() => setImagenAmpliada(null)} 
-              className="fixed top-6 right-6 z-[110] text-white/70 hover:text-[#00F0FF] transition-colors bg-black/40 p-3 rounded-full backdrop-blur-sm"
-            >
+            {/* Cerrar */}
+            <button className="absolute top-6 right-6 z-[110] text-white/70 hover:text-[#00F0FF] transition-colors bg-black/40 p-3 rounded-full backdrop-blur-sm">
               <X size={28} />
             </button>
+
+            {/* Anterior */}
+            {lightbox.images.length > 1 && (
+              <button 
+                onClick={prevImage} 
+                className="absolute left-4 md:left-10 z-[110] text-white/70 hover:text-[#00F0FF] bg-black/40 p-4 rounded-full transition-all hover:scale-110"
+              >
+                <ChevronLeft size={36} />
+              </button>
+            )}
             
             <motion.img
-              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-              src={imagenAmpliada}
+              key={lightbox.index} // Forza la re-animación al cambiar de imagen
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}
+              src={lightbox.images[lightbox.index]}
               alt="Vista ampliada"
-              // my-auto permite centrarla verticalmente. max-w-5xl limita el ancho para que no se deforme en monitores ultrawide.
-              className="w-full max-w-5xl h-auto object-contain my-auto rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] cursor-default"
-              onClick={(e) => e.stopPropagation()} // Permite hacer scroll sobre la imagen sin que se cierre
+              className="w-full max-w-5xl max-h-[90vh] object-contain shadow-[0_0_50px_rgba(0,0,0,0.5)] cursor-default"
+              onClick={(e) => e.stopPropagation()} 
             />
+
+            {/* Siguiente */}
+            {lightbox.images.length > 1 && (
+              <button 
+                onClick={nextImage} 
+                className="absolute right-4 md:right-10 z-[110] text-white/70 hover:text-[#00F0FF] bg-black/40 p-4 rounded-full transition-all hover:scale-110"
+              >
+                <ChevronRight size={36} />
+              </button>
+            )}
+
+            {/* Contador de Imágenes */}
+            {lightbox.images.length > 1 && (
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white bg-black/50 px-4 py-2 rounded-full tracking-widest text-sm font-mono backdrop-blur-sm">
+                {lightbox.index + 1} / {lightbox.images.length}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
