@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import Cropper from 'react-easy-crop';
 import api from './api';
 
-// Importamos iconos disponibles para que el Admin los seleccione
+// Iconos para las habilidades
 const ICONOS_DISPONIBLES = [
   'Smartphone', 'Terminal', 'Server', 'Database', 'Code', 
   'Monitor', 'Cpu', 'Globe', 'Layout', 'PenTool'
@@ -13,7 +13,9 @@ const ICONOS_DISPONIBLES = [
 
 const Toast = ({ message, type }) => (
   <motion.div 
-    initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }}
+    initial={{ opacity: 0, y: 50 }} 
+    animate={{ opacity: 1, y: 0 }} 
+    exit={{ opacity: 0, y: 50 }}
     className={`fixed bottom-8 right-8 p-4 font-semibold text-sm tracking-wide z-50 rounded shadow-lg border ${
       type === 'error' ? 'bg-[#93000a] text-white border-red-500' : 'bg-surface-container-highest text-primary-container border-primary-container'
     }`}
@@ -22,7 +24,6 @@ const Toast = ({ message, type }) => (
   </motion.div>
 );
 
-// --- UTILIDAD PARA GENERAR EL RECORTE DE IMAGEN ---
 const createImage = (url) =>
   new Promise((resolve, reject) => {
     const image = new Image();
@@ -46,13 +47,11 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   );
   
   return new Promise((resolve) => {
-    // Exportamos en PNG para mantener la transparencia si es que la hay
     canvas.toBlob((file) => {
       resolve(new File([file], 'recorte.png', { type: 'image/png' }));
     }, 'image/png');
   });
 };
-// ---------------------------------------------------
 
 export default function AdminPanel() {
   const [authKey, setAuthKey] = useState('');
@@ -60,7 +59,6 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('proyectos');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [isUploading, setIsUploading] = useState(false);
-  
   const [showPreview, setShowPreview] = useState(false);
   const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
 
@@ -68,24 +66,16 @@ export default function AdminPanel() {
   const fileInputRefPerfil = useRef(null);
   const fileInputRefFavicon = useRef(null);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
-  };
-
   const [proyectos, setProyectos] = useState([]);
   const [mensajes, setMensajes] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [nuevaCategoria, setNuevaCategoria] = useState('');
-  
   const [msgPage, setMsgPage] = useState(0);
   const [hasMoreMsgs, setHasMoreMsgs] = useState(true);
   const msgLimit = 15;
 
   const [editingId, setEditingId] = useState(null);
-  const [formProyecto, setFormProyecto] = useState({ 
-    titulo: '', descripcion: '', tecnologias: '', categoria: '', url_repo: '', imagen_url: '' 
-  });
+  const [formProyecto, setFormProyecto] = useState({ titulo: '', descripcion: '', tecnologias: '', categoria: '', url_repo: '', imagen_url: '' });
   
   const [perfil, setPerfil] = useState({
     nombre: '', titulo: '', descripcion: '', imagen_url: '', favicon_url: '', 
@@ -95,7 +85,6 @@ export default function AdminPanel() {
   const [redesExtra, setRedesExtra] = useState([]);
   const [habilidades, setHabilidades] = useState([]);
 
-  // --- ESTADOS PARA EL RECORTADOR (CROPPER) ---
   const [cropModal, setCropModal] = useState({ show: false, imageSrc: null, target: 'perfil' });
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -103,11 +92,28 @@ export default function AdminPanel() {
 
   const getAuth = () => ({ headers: { 'x-token': localStorage.getItem('admin_token') } });
 
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
+
+  // ✨ NUEVA LÓGICA: Aplicar Favicon a la pestaña de Admin
+  useEffect(() => {
+    if (perfil.favicon_url) {
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = perfil.favicon_url;
+    }
+  }, [perfil.favicon_url]);
+
   const cargarMensajes = (pagina, reset = false) => {
     api.get(`/mensajes?skip=${pagina * msgLimit}&limit=${msgLimit}`, getAuth()).then(res => {
       if(res.data.length < msgLimit) setHasMoreMsgs(false);
       else setHasMoreMsgs(true);
-      
       if(reset) setMensajes(res.data);
       else setMensajes(prev => [...prev, ...res.data]);
     }).catch(() => {});
@@ -121,7 +127,6 @@ export default function AdminPanel() {
       setRedesExtra(JSON.parse(res.data.redes_sociales || '[]'));
       setHabilidades(JSON.parse(res.data.habilidades || '[]'));
     }).catch(() => {});
-    
     setMsgPage(0);
     cargarMensajes(0, true);
   };
@@ -158,7 +163,7 @@ export default function AdminPanel() {
     if (passForm.new !== passForm.confirm) return showToast("Las contraseñas no coinciden", "error");
     try {
       await api.put('/admin/password', { current_password: passForm.current, new_password: passForm.new }, getAuth());
-      showToast("Contraseña actualizada. Inicia sesión de nuevo.");
+      showToast("Contraseña actualizada.");
       setTimeout(() => logout(), 2000);
     } catch (error) { 
       showToast(error.response?.data?.detail || "Error", "error"); 
@@ -170,13 +175,11 @@ export default function AdminPanel() {
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-    
     try {
       const res = await api.post('/upload', formData, { 
         headers: { 'Content-Type': 'multipart/form-data', 'x-token': localStorage.getItem('admin_token') }
       });
       const newUrl = res.data.url;
-      
       if (target === 'proyecto') {
         setFormProyecto(prev => ({ ...prev, imagen_url: prev.imagen_url ? `${prev.imagen_url}, ${newUrl}` : newUrl }));
       } else if (target === 'perfil') {
@@ -184,7 +187,6 @@ export default function AdminPanel() {
       } else if (target === 'favicon') {
         setPerfil(prev => ({ ...prev, favicon_url: newUrl }));
       }
-      
       showToast("Imagen subida exitosamente");
     } catch (error) { 
       showToast("Error subiendo imagen.", "error"); 
@@ -206,7 +208,6 @@ export default function AdminPanel() {
     }
   };
 
-  // --- LÓGICA DEL RECORTADOR (CROPPER) ---
   const handleSelectFileForCrop = (e, target) => {
     if (e.target.files && e.target.files.length > 0) {
       const reader = new FileReader();
@@ -230,9 +231,7 @@ export default function AdminPanel() {
       showToast("Error al procesar el recorte", "error");
     }
   };
-  // ------------------------------------------
 
-  // --- Lógica de Habilidades ---
   const handleAddHabilidad = () => {
     setHabilidades([...habilidades, { nombre: '', descripcion: '', icon: 'Code', color: 'bg-primary-container' }]);
   };
@@ -246,16 +245,12 @@ export default function AdminPanel() {
     newHabs[idx][field] = value;
     setHabilidades(newHabs);
   };
-  // -----------------------------
 
   const toggleCategoria = (cat) => {
     const currentCats = formProyecto.categoria ? formProyecto.categoria.split(',').map(c => c.trim()).filter(Boolean) : [];
     let newCats;
-    if (currentCats.includes(cat)) {
-      newCats = currentCats.filter(c => c !== cat); 
-    } else {
-      newCats = [...currentCats, cat]; 
-    }
+    if (currentCats.includes(cat)) newCats = currentCats.filter(c => c !== cat); 
+    else newCats = [...currentCats, cat]; 
     setFormProyecto({ ...formProyecto, categoria: newCats.join(', ') });
   };
 
@@ -283,12 +278,8 @@ export default function AdminPanel() {
     setEditingId(proyecto.id);
     setShowPreview(false);
     setFormProyecto({
-      titulo: proyecto.titulo, 
-      descripcion: proyecto.descripcion, 
-      tecnologias: proyecto.tecnologias,
-      categoria: proyecto.categoria, 
-      url_repo: proyecto.url_repo || '', 
-      imagen_url: proyecto.imagen_url || ''
+      titulo: proyecto.titulo, descripcion: proyecto.descripcion, tecnologias: proyecto.tecnologias,
+      categoria: proyecto.categoria, url_repo: proyecto.url_repo || '', imagen_url: proyecto.imagen_url || ''
     });
     window.scrollTo(0, 0);
   };
@@ -306,7 +297,7 @@ export default function AdminPanel() {
   };
 
   const eliminarMensaje = async (id) => {
-    if(window.confirm("¿Eliminar este mensaje? No podrás recuperarlo.")) {
+    if(window.confirm("¿Eliminar este mensaje?")) {
       try {
         await api.delete(`/mensajes/${id}`, getAuth());
         showToast("Mensaje eliminado");
@@ -321,7 +312,6 @@ export default function AdminPanel() {
     if(!nuevaCategoria.trim()) return;
     const nombre = nuevaCategoria.trim().toUpperCase().replace(/ /g, '_');
     if(categorias.includes(nombre)) return showToast("La categoría ya existe", "error");
-    
     setCategorias([...categorias, nombre]);
     setNuevaCategoria('');
   };
@@ -341,9 +331,7 @@ export default function AdminPanel() {
   };
 
   const handleAddRed = () => setRedesExtra([...redesExtra, { nombre: '', url: '' }]);
-  
   const handleRemoveRed = (idx) => setRedesExtra(redesExtra.filter((_, i) => i !== idx));
-  
   const handleChangeRed = (idx, field, value) => {
     const newRedes = [...redesExtra];
     newRedes[idx][field] = value;
@@ -469,286 +457,6 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {activeTab === 'categorias' && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
-          <div className="bg-[#1a1c20] p-8 rounded-2xl border border-outline-variant/20 shadow-xl">
-            <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">
-              <Tags className="text-primary-container" />
-              <h3 className="text-xl font-bold">Gestión de Categorías</h3>
-            </div>
-            
-            <div className="flex gap-4 mb-8">
-              <input 
-                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-[#00f0ff] outline-none text-white uppercase" 
-                placeholder="NUEVA_CATEGORIA" 
-                value={nuevaCategoria} 
-                onChange={e => setNuevaCategoria(e.target.value)} 
-                onKeyDown={e => e.key === 'Enter' && handleAddCategoria()}
-              />
-              <button 
-                onClick={handleAddCategoria} 
-                className="bg-gray-800 text-white px-6 font-bold uppercase text-xs rounded-lg hover:bg-gray-700 transition-colors whitespace-nowrap"
-              >
-                Añadir
-              </button>
-            </div>
-
-            <div className="space-y-3 mb-8">
-              {categorias.length === 0 ? <p className="text-gray-500 text-sm">No hay categorías. Añade una para empezar.</p> : null}
-              {categorias.map(cat => (
-                <div key={cat} className="flex justify-between items-center bg-[#0c0e12] p-4 rounded-lg border border-gray-800">
-                  <span className="font-mono text-sm font-bold text-primary-container">{cat}</span>
-                  <button onClick={() => handleRemoveCategoria(cat)} className="text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors"><Trash2 size={16}/></button>
-                </div>
-              ))}
-            </div>
-
-            <button onClick={handleSaveCategorias} className="w-full bg-primary-container text-background font-bold py-4 rounded-xl hover:brightness-110 transition-all uppercase text-xs tracking-widest">
-              Guardar Cambios de Categorías
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      {activeTab === 'seguridad' && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
-          <div className="bg-[#1a1c20] p-8 rounded-2xl border border-outline-variant/20 shadow-xl">
-            <div className="flex items-center gap-3 mb-8 border-b border-gray-800 pb-4">
-              <ShieldCheck className="text-primary-container" />
-              <h3 className="text-xl font-bold">Seguridad de Acceso</h3>
-            </div>
-            <form onSubmit={handlePasswordChange} className="space-y-5">
-              <div>
-                <label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Contraseña Actual</label>
-                <input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.current} onChange={e => setPassForm({...passForm, current: e.target.value})} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Nueva Contraseña</label>
-                <input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.new} onChange={e => setPassForm({...passForm, new: e.target.value})} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Confirmar Nueva Contraseña</label>
-                <input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.confirm} onChange={e => setPassForm({...passForm, confirm: e.target.value})} />
-              </div>
-              <button className="w-full bg-primary-container text-background font-bold py-4 rounded-xl mt-4 hover:brightness-110 transition-all uppercase text-xs tracking-widest">
-                Actualizar Credenciales
-              </button>
-            </form>
-          </div>
-        </motion.div>
-      )}
-
-      {activeTab === 'mensajes' && (
-        <div>
-          <div className="border-b border-gray-800 pb-4 mb-6">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2"><Mail size={20}/> Bandeja de Entrada</h3>
-            <p className="text-on-surface-variant text-sm mt-1">Mensajes recibidos desde el formulario de contacto</p>
-          </div>
-          <div className="grid gap-4">
-            {mensajes.length === 0 ? (
-              <p className="text-gray-500 italic p-8 text-center bg-[#1a1c20] rounded-xl border border-gray-800">No tienes mensajes nuevos.</p>
-            ) : (
-              <>
-                {mensajes.map(m => (
-                  <div key={m.id} className="bg-[#1a1c20] border border-gray-800 p-6 rounded-lg shadow-lg relative group">
-                    <button onClick={() => eliminarMensaje(m.id)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 transition-colors"><X size={20} /></button>
-                    <div className="mb-4 border-b border-gray-800 pb-4 pr-8">
-                      <h4 className="text-primary-container font-bold text-lg">{m.nombre}</h4>
-                      <a href={`mailto:${m.email}`} className="text-sm text-gray-400 hover:text-white transition-colors block">{m.email}</a>
-                      <span className="text-xs text-gray-500 block mt-2">{new Date(m.fecha).toLocaleString()}</span>
-                    </div>
-                    <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{m.mensaje}</p>
-                  </div>
-                ))}
-                {hasMoreMsgs && (
-                  <button 
-                    onClick={() => { const next = msgPage + 1; setMsgPage(next); cargarMensajes(next); }} 
-                    className="mt-6 flex items-center justify-center gap-2 w-full py-4 border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600 rounded-lg transition-colors text-sm font-bold tracking-widest uppercase"
-                  >
-                    <RefreshCw size={16} /> Cargar mensajes antiguos
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'proyectos' && (
-        <>
-          <form onSubmit={handleSubmitProyecto} className="bg-[#1a1c20] p-8 rounded-xl border border-outline-variant/20 mb-8 grid grid-cols-2 gap-6 shadow-lg">
-            <div className="col-span-2 flex justify-between items-center border-b border-gray-800 pb-4 mb-2">
-              <h3 className="text-lg font-bold text-white">{editingId ? 'Editar Proyecto Existente' : 'Registrar Nuevo Proyecto'}</h3>
-              {editingId && <button type="button" onClick={() => {setEditingId(null); setShowPreview(false); setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: '', url_repo: '', imagen_url: '' })}} className="text-red-400 text-sm font-bold hover:underline">Cancelar Edición</button>}
-            </div>
-
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Título del Proyecto</label>
-              <input 
-                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" 
-                value={formProyecto.titulo} 
-                onChange={e => setFormProyecto({...formProyecto, titulo: e.target.value})} 
-                required 
-              />
-            </div>
-            
-            {/* Selector múltiple de Categorías */}
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Categorías (Selecciona Varias)</label>
-              <div className="flex flex-wrap gap-2 p-2 bg-[#0c0e12] border border-gray-800 rounded-md min-h-[48px] items-center">
-                {categorias.length === 0 && <span className="text-gray-500 text-sm italic px-2">Crea una categoría en la pestaña "Categorías"</span>}
-                {categorias.map(cat => {
-                  const isSelected = formProyecto.categoria ? formProyecto.categoria.split(',').map(c => c.trim()).includes(cat) : false;
-                  return (
-                    <button
-                      type="button"
-                      key={cat}
-                      onClick={() => toggleCategoria(cat)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-md uppercase transition-all ${
-                        isSelected 
-                          ? 'bg-primary-container text-background shadow-[0_0_10px_rgba(0,240,255,0.3)]' 
-                          : 'bg-[#1a1c20] text-gray-400 border border-gray-700 hover:border-[#00f0ff] hover:text-white'
-                      }`}
-                    >
-                      {cat.replace(/_/g, ' ')}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="col-span-2">
-              <div className="flex justify-between items-end mb-2">
-                <label className="block text-xs uppercase tracking-wider text-gray-400">Descripción Detallada</label>
-                <button 
-                  type="button" 
-                  onClick={() => setShowPreview(!showPreview)} 
-                  className="flex items-center gap-2 text-xs font-bold bg-gray-800 text-white px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
-                >
-                  {showPreview ? <><Edit3 size={14}/> Editar Código</> : <><Eye size={14}/> Ver Resultado Visual</>}
-                </button>
-              </div>
-              
-              {showPreview ? (
-                <div className="w-full bg-[#0c0e12] border border-[#00f0ff]/50 p-4 rounded-md h-40 overflow-y-auto custom-scrollbar text-sm shadow-[0_0_15px_rgba(0,240,255,0.05)]">
-                  <ReactMarkdown
-                      components={{
-                        ul: ({node, ...props}) => <ul className="space-y-3 mt-4 mb-6" {...props} />,
-                        li: ({node, ...props}) => (
-                          <li className="flex items-start gap-3 text-gray-300 leading-relaxed font-light text-sm">
-                            <span className="text-primary-container mt-1.5 flex-shrink-0 text-[10px]">◈</span>
-                            <span>{props.children}</span>
-                          </li>
-                        ),
-                        strong: ({node, ...props}) => <strong className="font-bold text-white text-primary-container/90" {...props} />,
-                        p: ({node, ...props}) => <p className="mb-4 text-sm text-gray-300 leading-relaxed font-light" {...props} />,
-                        h1: ({node, ...props}) => <h1 className="text-lg font-bold text-white mt-4 mb-2" {...props} />,
-                        h2: ({node, ...props}) => <h2 className="text-base font-bold text-white mt-4 mb-2" {...props} />,
-                      }}
-                    >
-                      {formProyecto.descripcion || '*No hay contenido para mostrar...*'}
-                    </ReactMarkdown>
-                </div>
-              ) : (
-                <textarea 
-                  className="w-full bg-[#0c0e12] border border-gray-800 p-4 rounded-md h-40 focus:border-[#00f0ff] outline-none resize-none text-sm font-mono text-gray-300" 
-                  placeholder="Escribe usando Markdown...&#10;&#10;**Texto en negrita**&#10;* Primera viñeta&#10;* Segunda viñeta" 
-                  value={formProyecto.descripcion} 
-                  onChange={e => setFormProyecto({...formProyecto, descripcion: e.target.value})} 
-                  required 
-                />
-              )}
-            </div>
-
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Tecnologías Utilizadas</label>
-              <input 
-                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" 
-                placeholder="Ej: Flutter, Firebase, Dart" 
-                value={formProyecto.tecnologias} 
-                onChange={e => setFormProyecto({...formProyecto, tecnologias: e.target.value})} 
-                required 
-              />
-            </div>
-            
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Enlace al Repositorio</label>
-              <input 
-                className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" 
-                placeholder="https://github.com/..." 
-                value={formProyecto.url_repo} 
-                onChange={e => setFormProyecto({...formProyecto, url_repo: e.target.value})} 
-              />
-            </div>
-            
-            <div className="col-span-2">
-              <div className="flex justify-between items-end mb-2">
-                <label className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-400">
-                  URLs de las Imágenes 
-                  <span className="text-[#00f0ff] bg-[#00f0ff]/10 px-2 py-0.5 rounded text-[10px]">Ctrl+V habilitado</span>
-                </label>
-                <input 
-                  type="file" accept="image/*" className="hidden" ref={fileInputRefProyecto} 
-                  onChange={(e) => { procesarSubidaImagen(e.target.files[0], 'proyecto'); e.target.value = null; }} 
-                />
-                <button type="button" disabled={isUploading} onClick={() => fileInputRefProyecto.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50">
-                  {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Subir Archivo
-                </button>
-              </div>
-              
-              <div className="relative">
-                {isUploading && (
-                  <div className="absolute inset-0 bg-[#0c0e12]/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-md border border-[#00f0ff]">
-                    <span className="flex items-center gap-2 text-[#00f0ff] font-bold text-sm tracking-widest uppercase">
-                      <Loader2 size={18} className="animate-spin"/> Subiendo...
-                    </span>
-                  </div>
-                )}
-                <textarea 
-                  className="w-full bg-[#0c0e12] border border-gray-800 p-4 rounded-md h-28 focus:border-[#00f0ff] outline-none resize-none text-sm transition-all text-gray-300" 
-                  placeholder="Aquí aparecerán las URLs... &#10;También puedes hacer CLIC AQUÍ y presionar Ctrl+V para pegar una imagen." 
-                  value={formProyecto.imagen_url} 
-                  onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})}
-                  onPaste={(e) => handlePasteImage(e, 'proyecto')}
-                />
-                <ClipboardPaste className="absolute bottom-3 right-3 text-gray-700 pointer-events-none opacity-50" size={24} />
-              </div>
-            </div>
-            
-            <button 
-              disabled={isUploading || formProyecto.categoria === ''} 
-              className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm disabled:opacity-50 ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}
-            >
-              {editingId ? 'Guardar Cambios del Proyecto' : 'Publicar Nuevo Proyecto'}
-            </button>
-          </form>
-
-          <div>
-            <h3 className="text-gray-300 mb-4 text-lg font-bold">Proyectos Publicados</h3>
-            <div className="grid gap-3">
-              {proyectos.map(p => (
-                <div key={p.id} className="flex flex-col md:flex-row md:items-center justify-between bg-[#1a1c20] border border-gray-800 p-5 rounded-lg hover:border-gray-600 transition-colors">
-                  <div>
-                    <span className="text-base font-bold text-white block md:inline">{p.titulo}</span>
-                    <div className="inline-flex flex-wrap gap-2 mt-2 md:mt-0 md:ml-3">
-                      {p.categoria && p.categoria.split(',').map((cat, i) => (
-                        <span key={i} className="text-[10px] text-primary-container bg-primary-container/10 px-2 py-1 rounded font-bold uppercase tracking-wider">
-                          {cat.trim().replace(/_/g, ' ')}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-4 mt-4 md:mt-0">
-                    <button onClick={() => iniciarEdicion(p)} className="text-yellow-500 hover:text-yellow-400 text-sm font-bold">Editar</button>
-                    <button onClick={() => eliminarProyecto(p.id)} className="text-red-500 hover:text-red-400 text-sm font-bold">Eliminar</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
       {activeTab === 'perfil' && (
         <form onSubmit={handleSubmitPerfil} className="bg-[#1a1c20] p-8 rounded-xl border border-gray-800 grid grid-cols-2 gap-6 shadow-lg">
           <div className="col-span-2 border-b border-gray-800 pb-4 mb-2">
@@ -786,9 +494,7 @@ export default function AdminPanel() {
 
           <div className="col-span-2 md:col-span-1">
             <div className="flex justify-between items-end mb-2">
-              <label className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-400">
-                URL Foto de Perfil
-              </label>
+              <label className="block text-xs uppercase tracking-wider text-gray-400">URL Foto de Perfil</label>
               <input 
                 type="file" accept="image/*" className="hidden" ref={fileInputRefPerfil} 
                 onChange={(e) => handleSelectFileForCrop(e, 'perfil')} 
@@ -811,7 +517,6 @@ export default function AdminPanel() {
             />
           </div>
 
-          {/* ✨ NUEVO: Gestión de Favicon */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex justify-between items-end mb-2">
               <label className="block text-xs uppercase tracking-wider text-gray-400">URL Favicon (Pestaña)</label>
@@ -837,7 +542,6 @@ export default function AdminPanel() {
             />
           </div>
 
-          {/* ✨ NUEVO: Gestión de Habilidades Técnicas */}
           <div className="col-span-2 border-b border-gray-800 pb-4 mb-2 mt-4 flex justify-between items-center">
             <h3 className="text-lg font-bold text-white">Habilidades Técnicas</h3>
             <button 
@@ -862,46 +566,24 @@ export default function AdminPanel() {
               >
                 <X size={16} />
               </button>
-              
               <div className="md:col-span-1">
                 <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Título</label>
-                <input 
-                  className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none text-sm" 
-                  value={hab.nombre} 
-                  onChange={e => handleChangeHabilidad(idx, 'nombre', e.target.value)} 
-                  placeholder="Ej: Backend" 
-                  required 
-                />
+                <input className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none text-sm" value={hab.nombre} onChange={e => handleChangeHabilidad(idx, 'nombre', e.target.value)} placeholder="Ej: Backend" required />
               </div>
               <div className="md:col-span-2">
                 <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Descripción</label>
-                <input 
-                  className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none text-sm" 
-                  value={hab.descripcion} 
-                  onChange={e => handleChangeHabilidad(idx, 'descripcion', e.target.value)} 
-                  placeholder="Desarrollo de APIs..." 
-                  required 
-                />
+                <input className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none text-sm" value={hab.descripcion} onChange={e => handleChangeHabilidad(idx, 'descripcion', e.target.value)} placeholder="Desarrollo de APIs..." required />
               </div>
-              
               <div className="md:col-span-1 flex gap-2">
                 <div className="w-1/2">
                   <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Icono</label>
-                  <select 
-                    className="w-full bg-[#1a1c20] border border-gray-700 p-2 rounded text-white outline-none text-xs" 
-                    value={hab.icon} 
-                    onChange={e => handleChangeHabilidad(idx, 'icon', e.target.value)}
-                  >
+                  <select className="w-full bg-[#1a1c20] border border-gray-700 p-2 rounded text-white outline-none text-xs" value={hab.icon} onChange={e => handleChangeHabilidad(idx, 'icon', e.target.value)}>
                     {ICONOS_DISPONIBLES.map(ico => <option key={ico} value={ico}>{ico}</option>)}
                   </select>
                 </div>
                 <div className="w-1/2">
                   <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Color</label>
-                  <select 
-                    className="w-full bg-[#1a1c20] border border-gray-700 p-2 rounded text-white outline-none text-xs" 
-                    value={hab.color} 
-                    onChange={e => handleChangeHabilidad(idx, 'color', e.target.value)}
-                  >
+                  <select className="w-full bg-[#1a1c20] border border-gray-700 p-2 rounded text-white outline-none text-xs" value={hab.color} onChange={e => handleChangeHabilidad(idx, 'color', e.target.value)}>
                     <option value="bg-primary-container">Cyan</option>
                     <option value="bg-secondary">Morado</option>
                   </select>
@@ -916,75 +598,162 @@ export default function AdminPanel() {
 
           <div className="col-span-2 md:col-span-1">
             <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Correo Electrónico</label>
-            <input 
-              type="email" 
-              className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" 
-              value={perfil.email} 
-              onChange={e => setPerfil({...perfil, email: e.target.value})} 
-              required 
-            />
+            <input type="email" className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" value={perfil.email} onChange={e => setPerfil({...perfil, email: e.target.value})} required />
           </div>
           <div className="col-span-2 md:col-span-1">
             <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Enlace de GitHub</label>
-            <input 
-              className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" 
-              value={perfil.github_url || ''} 
-              onChange={e => setPerfil({...perfil, github_url: e.target.value})} 
-            />
+            <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" value={perfil.github_url || ''} onChange={e => setPerfil({...perfil, github_url: e.target.value})} />
           </div>
 
           <div className="col-span-2 border-b border-gray-800 pb-4 mb-2 mt-4 flex justify-between items-center">
             <h3 className="text-lg font-bold text-white">Redes Sociales Extra</h3>
-            <button 
-              type="button" 
-              onClick={handleAddRed} 
-              className="flex items-center gap-2 text-xs font-bold bg-gray-800 text-white px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
-            >
-              <Plus size={14} /> Añadir Red
-            </button>
+            <button type="button" onClick={handleAddRed} className="flex items-center gap-2 text-xs font-bold bg-gray-800 text-white px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"><Plus size={14} /> Añadir Red</button>
           </div>
 
           {redesExtra.map((red, idx) => (
             <div key={idx} className="col-span-2 flex flex-col md:flex-row gap-4 items-end bg-[#0c0e12] p-4 rounded-lg border border-gray-800">
               <div className="w-full md:w-1/3">
                 <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Nombre (Ej: LinkedIn)</label>
-                <input 
-                  className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none" 
-                  value={red.nombre} 
-                  onChange={e => handleChangeRed(idx, 'nombre', e.target.value)} 
-                  required 
-                />
+                <input className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none" value={red.nombre} onChange={e => handleChangeRed(idx, 'nombre', e.target.value)} required />
               </div>
               <div className="w-full md:w-2/3">
                 <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Enlace URL</label>
                 <div className="flex gap-2">
-                  <input 
-                    className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none" 
-                    placeholder="https://..." 
-                    value={red.url} 
-                    onChange={e => handleChangeRed(idx, 'url', e.target.value)} 
-                    required 
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => handleRemoveRed(idx)} 
-                    className="p-2 text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <input className="w-full bg-transparent border-b border-gray-700 p-2 text-white focus:border-[#00f0ff] outline-none" placeholder="https://..." value={red.url} onChange={e => handleChangeRed(idx, 'url', e.target.value)} required /><button type="button" onClick={() => handleRemoveRed(idx)} className="p-2 text-red-500 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={18} /></button>
                 </div>
               </div>
             </div>
           ))}
 
-          <button 
-            disabled={isUploading} 
-            className="col-span-2 bg-primary-container text-background font-bold py-4 mt-6 rounded-md hover:bg-white transition-colors uppercase tracking-widest text-sm disabled:opacity-50"
-          >
-            Guardar Cambios del Perfil
-          </button>
+          <button disabled={isUploading} className="col-span-2 bg-primary-container text-background font-bold py-4 mt-6 rounded-md hover:bg-white transition-colors uppercase tracking-widest text-sm disabled:opacity-50">Guardar Cambios del Perfil</button>
         </form>
       )}
+
+      {activeTab === 'proyectos' && (
+        <>
+          <form onSubmit={handleSubmitProyecto} className="bg-[#1a1c20] p-8 rounded-xl border border-outline-variant/20 mb-8 grid grid-cols-2 gap-6 shadow-lg">
+            <div className="col-span-2 flex justify-between items-center border-b border-gray-800 pb-4 mb-2">
+              <h3 className="text-lg font-bold text-white">{editingId ? 'Editar Proyecto Existente' : 'Registrar Nuevo Proyecto'}</h3>
+              {editingId && <button type="button" onClick={() => {setEditingId(null); setShowPreview(false); setFormProyecto({ titulo: '', descripcion: '', tecnologias: '', categoria: '', url_repo: '', imagen_url: '' })}} className="text-red-400 text-sm font-bold hover:underline">Cancelar Edición</button>}
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Título del Proyecto</label>
+              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" value={formProyecto.titulo} onChange={e => setFormProyecto({...formProyecto, titulo: e.target.value})} required />
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Categorías (Selecciona Varias)</label>
+              <div className="flex flex-wrap gap-2 p-2 bg-[#0c0e12] border border-gray-800 rounded-md min-h-[48px] items-center">
+                {categorias.length === 0 && <span className="text-gray-500 text-sm italic px-2">Crea una categoría en la pestaña "Categorías"</span>}
+                {categorias.map(cat => {
+                  const isSelected = formProyecto.categoria ? formProyecto.categoria.split(',').map(c => c.trim()).includes(cat) : false;
+                  return (
+                    <button type="button" key={cat} onClick={() => toggleCategoria(cat)} className={`px-3 py-1.5 text-xs font-bold rounded-md uppercase transition-all ${isSelected ? 'bg-primary-container text-background shadow-[0_0_10px_rgba(0,240,255,0.3)]' : 'bg-[#1a1c20] text-gray-400 border border-gray-700 hover:border-[#00f0ff] hover:text-white'}`}>{cat.replace(/_/g, ' ')}</button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="col-span-2">
+              <div className="flex justify-between items-end mb-2">
+                <label className="block text-xs uppercase tracking-wider text-gray-400">Descripción Detallada</label>
+                <button type="button" onClick={() => setShowPreview(!showPreview)} className="flex items-center gap-2 text-xs font-bold bg-gray-800 text-white px-3 py-1.5 rounded hover:bg-gray-700 transition-colors">{showPreview ? <><Edit3 size={14}/> Editar Código</> : <><Eye size={14}/> Ver Resultado Visual</>}</button>
+              </div>
+              {showPreview ? (
+                <div className="w-full bg-[#0c0e12] border border-[#00f0ff]/50 p-4 rounded-md h-40 overflow-y-auto custom-scrollbar text-sm shadow-[0_0_15px_rgba(0,240,255,0.05)]">
+                  <ReactMarkdown components={{ ul: ({node, ...props}) => <ul className="space-y-3 mt-4 mb-6" {...props} />, li: ({node, ...props}) => (<li className="flex items-start gap-3 text-gray-300 leading-relaxed font-light text-sm"><span className="text-primary-container mt-1.5 flex-shrink-0 text-[10px]">◈</span><span>{props.children}</span></li>), strong: ({node, ...props}) => <strong className="font-bold text-white text-primary-container/90" {...props} />, p: ({node, ...props}) => <p className="mb-4 text-sm text-gray-300 leading-relaxed font-light" {...props} />, h1: ({node, ...props}) => <h1 className="text-lg font-bold text-white mt-4 mb-2" {...props} />, h2: ({node, ...props}) => <h2 className="text-base font-bold text-white mt-4 mb-2" {...props} />, }}>{formProyecto.descripcion || '*No hay contenido para mostrar...*'}</ReactMarkdown>
+                </div>
+              ) : (
+                <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-4 rounded-md h-40 focus:border-[#00f0ff] outline-none resize-none text-sm font-mono text-gray-300" placeholder="Escribe usando Markdown..." value={formProyecto.descripcion} onChange={e => setFormProyecto({...formProyecto, descripcion: e.target.value})} required />
+              )}
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Tecnologías Utilizadas</label>
+              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" placeholder="Ej: Flutter, Firebase, Dart" value={formProyecto.tecnologias} onChange={e => setFormProyecto({...formProyecto, tecnologias: e.target.value})} required />
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Enlace al Repositorio</label>
+              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-md focus:border-[#00f0ff] outline-none text-white" placeholder="https://github.com/..." value={formProyecto.url_repo} onChange={e => setFormProyecto({...formProyecto, url_repo: e.target.value})} />
+            </div>
+            <div className="col-span-2">
+              <div className="flex justify-between items-end mb-2">
+                <label className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-400">URLs de las Imágenes <span className="text-[#00f0ff] bg-[#00f0ff]/10 px-2 py-0.5 rounded text-[10px]">Ctrl+V habilitado</span></label>
+                <input type="file" accept="image/*" className="hidden" ref={fileInputRefProyecto} onChange={(e) => { procesarSubidaImagen(e.target.files[0], 'proyecto'); e.target.value = null; }} />
+                <button type="button" disabled={isUploading} onClick={() => fileInputRefProyecto.current.click()} className="flex items-center gap-2 text-xs font-bold bg-secondary text-background px-3 py-1.5 rounded hover:bg-white transition-colors disabled:opacity-50"><UploadCloud size={14} /> Subir Archivo</button>
+              </div>
+              <div className="relative">
+                {isUploading && ( <div className="absolute inset-0 bg-[#0c0e12]/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-md border border-[#00f0ff]"><span className="flex items-center gap-2 text-[#00f0ff] font-bold text-sm tracking-widest uppercase"><Loader2 size={18} className="animate-spin"/> Subiendo...</span></div> )}
+                <textarea className="w-full bg-[#0c0e12] border border-gray-800 p-4 rounded-md h-28 focus:border-[#00f0ff] outline-none resize-none text-sm transition-all text-gray-300" placeholder="URLs de imágenes..." value={formProyecto.imagen_url} onChange={e => setFormProyecto({...formProyecto, imagen_url: e.target.value})} onPaste={(e) => handlePasteImage(e, 'proyecto')} />
+                <ClipboardPaste className="absolute bottom-3 right-3 text-gray-700 pointer-events-none opacity-50" size={24} />
+              </div>
+            </div>
+            <button disabled={isUploading || formProyecto.categoria === ''} className={`col-span-2 text-background font-bold py-4 mt-4 rounded-md transition-colors uppercase tracking-widest text-sm disabled:opacity-50 ${editingId ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-primary-container hover:bg-white'}`}>{editingId ? 'Guardar Cambios del Proyecto' : 'Publicar Nuevo Proyecto'}</button>
+          </form>
+          <div>
+            <h3 className="text-gray-300 mb-4 text-lg font-bold">Proyectos Publicados</h3>
+            <div className="grid gap-3">
+              {proyectos.map(p => (
+                <div key={p.id} className="flex flex-col md:flex-row md:items-center justify-between bg-[#1a1c20] border border-gray-800 p-5 rounded-lg hover:border-gray-600 transition-colors">
+                  <div>
+                    <span className="text-base font-bold text-white block md:inline">{p.titulo}</span>
+                    <div className="inline-flex flex-wrap gap-2 mt-2 md:mt-0 md:ml-3">
+                      {p.categoria && p.categoria.split(',').map((cat, i) => ( <span key={i} className="text-[10px] text-primary-container bg-primary-container/10 px-2 py-1 rounded font-bold uppercase tracking-wider">{cat.trim().replace(/_/g, ' ')}</span> ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mt-4 md:mt-0">
+                    <button onClick={() => iniciarEdicion(p)} className="text-yellow-500 hover:text-yellow-400 text-sm font-bold">Editar</button>
+                    <button onClick={() => eliminarProyecto(p.id)} className="text-red-500 hover:text-red-400 text-sm font-bold">Eliminar</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'categorias' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+          <div className="bg-[#1a1c20] p-8 rounded-2xl border border-outline-variant/20 shadow-xl">
+            <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4"><Tags className="text-primary-container" /><h3 className="text-xl font-bold">Gestión de Categorías</h3></div>
+            <div className="flex gap-4 mb-8">
+              <input className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-[#00f0ff] outline-none text-white uppercase" placeholder="NUEVA_CATEGORIA" value={nuevaCategoria} onChange={e => setNuevaCategoria(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddCategoria()} />
+              <button onClick={handleAddCategoria} className="bg-gray-800 text-white px-6 font-bold uppercase text-xs rounded-lg hover:bg-gray-700 transition-colors whitespace-nowrap">Añadir</button>
+            </div>
+            <div className="space-y-3 mb-8">
+              {categorias.length === 0 ? <p className="text-gray-500 text-sm">No hay categorías.</p> : null}
+              {categorias.map(cat => ( <div key={cat} className="flex justify-between items-center bg-[#0c0e12] p-4 rounded-lg border border-gray-800"><span className="font-mono text-sm font-bold text-primary-container">{cat}</span><button onClick={() => handleRemoveCategoria(cat)} className="text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors"><Trash2 size={16}/></button></div> ))}
+            </div>
+            <button onClick={handleSaveCategorias} className="w-full bg-primary-container text-background font-bold py-4 rounded-xl hover:brightness-110 transition-all uppercase text-xs tracking-widest">Guardar Cambios de Categorías</button>
+          </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'mensajes' && (
+        <div>
+          <div className="border-b border-gray-800 pb-4 mb-6"><h3 className="text-lg font-bold text-white flex items-center gap-2"><Mail size={20}/> Bandeja de Entrada</h3></div>
+          <div className="grid gap-4">
+            {mensajes.length === 0 ? ( <p className="text-gray-500 italic p-8 text-center bg-[#1a1c20] rounded-xl border border-gray-800">No tienes mensajes nuevos.</p> ) : (
+              <>
+                {mensajes.map(m => ( <div key={m.id} className="bg-[#1a1c20] border border-gray-800 p-6 rounded-lg shadow-lg relative group"><button onClick={() => eliminarMensaje(m.id)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 transition-colors"><X size={20} /></button><div className="mb-4 border-b border-gray-800 pb-4 pr-8"><h4 className="text-primary-container font-bold text-lg">{m.nombre}</h4><a href={`mailto:${m.email}`} className="text-sm text-gray-400 hover:text-white transition-colors block">{m.email}</a><span className="text-xs text-gray-500 block mt-2">{new Date(m.fecha).toLocaleString()}</span></div><p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{m.mensaje}</p></div> ))}
+                {hasMoreMsgs && ( <button onClick={() => { const next = msgPage + 1; setMsgPage(next); cargarMensajes(next); }} className="mt-6 flex items-center justify-center gap-2 w-full py-4 border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600 rounded-lg transition-colors text-sm font-bold tracking-widest uppercase"><RefreshCw size={16} /> Cargar mensajes antiguos</button> )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'seguridad' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
+          <div className="bg-[#1a1c20] p-8 rounded-2xl border border-outline-variant/20 shadow-xl">
+            <div className="flex items-center gap-3 mb-8 border-b border-gray-800 pb-4"><ShieldCheck className="text-primary-container" /><h3 className="text-xl font-bold">Seguridad de Acceso</h3></div>
+            <form onSubmit={handlePasswordChange} className="space-y-5">
+              <div><label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Contraseña Actual</label><input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.current} onChange={e => setPassForm({...passForm, current: e.target.value})} /></div>
+              <div><label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Nueva Contraseña</label><input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.new} onChange={e => setPassForm({...passForm, new: e.target.value})} /></div>
+              <div><label className="text-xs text-gray-400 uppercase font-bold mb-2 block">Confirmar Nueva Contraseña</label><input type="password" required className="w-full bg-[#0c0e12] border border-gray-800 p-3 rounded-lg focus:border-primary-container outline-none" value={passForm.confirm} onChange={e => setPassForm({...passForm, confirm: e.target.value})} /></div>
+              <button className="w-full bg-primary-container text-background font-bold py-4 rounded-xl mt-4 hover:brightness-110 transition-all uppercase text-xs tracking-widest">Actualizar Credenciales</button>
+            </form>
+          </div>
+        </motion.div>
+      )}
+
     </div>
   );
 }
