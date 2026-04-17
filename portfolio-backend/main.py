@@ -30,11 +30,19 @@ try:
 except Exception:
     pass
 
-# --- NUEVO SCRIPT: AMPLIAR TAMAÑO DE COLUMNAS DE IMÁGENES ---
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE proyectos ALTER COLUMN imagen_url TYPE TEXT;"))
         conn.execute(text("ALTER TABLE perfil ALTER COLUMN imagen_url TYPE TEXT;"))
+        conn.commit()
+except Exception:
+    pass
+
+# ✨ NUEVO SCRIPT: AGREGAR FAVICON Y HABILIDADES AUTOMÁTICAMENTE EN RENDER ✨
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE perfil ADD COLUMN favicon_url TEXT;"))
+        conn.execute(text("ALTER TABLE perfil ADD COLUMN habilidades TEXT DEFAULT '[]';"))
         conn.commit()
 except Exception:
     pass
@@ -115,6 +123,9 @@ class PerfilBase(BaseModel):
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None
     redes_sociales: Optional[str] = "[]"
+    # ✨ AÑADIDOS A PYDANTIC ✨
+    favicon_url: Optional[str] = None
+    habilidades: Optional[str] = "[]"
 
 class PerfilResponse(PerfilBase):
     id: int
@@ -213,7 +224,9 @@ def actualizar_perfil(perfil_data: PerfilBase, db: Session = Depends(get_db), to
 def leer_proyectos(skip: int = 0, limit: int = 6, categoria: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(models.Proyecto)
     if categoria and categoria != "TODOS":
-        query = query.filter(models.Proyecto.categoria == categoria)
+        # ✨ ARREGLO CRUCIAL PARA MÚLTIPLES CATEGORÍAS:
+        # En vez de "==" usamos "ilike" para que encuentre "MOBILE" dentro de "MOBILE, BACKEND"
+        query = query.filter(models.Proyecto.categoria.ilike(f"%{categoria}%"))
     return query.order_by(models.Proyecto.id.desc()).offset(skip).limit(limit).all()
 
 @app.post("/api/v1/proyectos", response_model=ProyectoResponse)

@@ -9,8 +9,8 @@ class Proyecto(Base):
     descripcion = Column(Text)
     tecnologias = Column(String(255))
     categoria = Column(String(50))
-    url_repo = Column(Text, nullable=True)     # <-- Cambiado a Text
-    imagen_url = Column(Text, nullable=True)   # <-- Cambiado a Text (Soporta múltiples URLs)
+    url_repo = Column(Text, nullable=True)     
+    imagen_url = Column(Text, nullable=True)   
 
 class Perfil(Base):
     __tablename__ = "perfil"
@@ -18,11 +18,14 @@ class Perfil(Base):
     nombre = Column(String(100), default="Mathias_Villazón")
     titulo = Column(String(100), default="Estudiante de Ingeniería de Sistemas")
     descripcion = Column(Text, default="Perfil en construcción...")
-    imagen_url = Column(Text, nullable=True)   # <-- Cambiado a Text
+    imagen_url = Column(Text, nullable=True)   
     email = Column(String(100), default="mathiasvillazons@gmail.com")
     github_url = Column(String(255), default="https://github.com/MathiasViSo")
     linkedin_url = Column(String(255), nullable=True)
     redes_sociales = Column(Text, default="[]") 
+    # ✨ NUEVOS CAMPOS AÑADIDOS ✨
+    favicon_url = Column(Text, nullable=True)
+    habilidades = Column(Text, default="[]")
 
 class Mensaje(Base):
     __tablename__ = "mensajes"
