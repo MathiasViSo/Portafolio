@@ -10,21 +10,40 @@ import AdminPanel from './Admin';
 const fadeUp = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }};
 const staggerContainer = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } }};
 
-const Navbar = ({ perfil }) => (
-  <nav className="fixed top-0 w-full z-50 bg-[#111318]/80 backdrop-blur-xl border-b border-[#00F0FF]/10 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
-    <div className="flex justify-between items-center px-6 md:px-12 py-4 max-w-7xl mx-auto font-headline tracking-tighter">
-      <div className="text-xl font-bold tracking-widest text-on-surface uppercase">
-        {perfil?.nombre ? perfil.nombre.split('_')[0] : 'PORTAFOLIO'}
+// ✨ Navbar con ScrollSpy (activeSection)
+const Navbar = ({ perfil, activeSection }) => {
+  const navLinks = [
+    { id: 'home', label: 'Inicio' },
+    { id: 'skills', label: 'Habilidades' },
+    { id: 'projects', label: 'Proyectos' },
+    { id: 'contact', label: 'Contacto' }
+  ];
+
+  return (
+    <nav className="fixed top-0 w-full z-50 bg-[#111318]/80 backdrop-blur-xl border-b border-[#00F0FF]/10 shadow-[0_0_20px_rgba(0,240,255,0.05)]">
+      <div className="flex justify-between items-center px-6 md:px-12 py-4 max-w-7xl mx-auto font-headline tracking-tighter">
+        <div className="text-xl font-bold tracking-widest text-on-surface uppercase">
+          {perfil?.nombre ? perfil.nombre.split('_')[0] : 'PORTAFOLIO'}
+        </div>
+        <div className="hidden md:flex items-center gap-8 text-sm">
+          {navLinks.map((link) => (
+            <a 
+              key={link.id} 
+              href={`#${link.id}`} 
+              className={`transition-all duration-300 uppercase tracking-wider text-xs font-bold ${
+                activeSection === link.id 
+                  ? 'text-[#00F0FF] drop-shadow-[0_0_8px_rgba(0,240,255,0.6)] scale-105' 
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
       </div>
-      <div className="hidden md:flex items-center gap-8 text-sm">
-        <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#home">Inicio</a>
-        <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#skills">Habilidades</a>
-        <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#projects">Proyectos</a>
-        <a className="text-on-surface-variant hover:text-on-surface transition-all" href="#contact">Contacto</a>
-      </div>
-    </div>
-  </nav>
-);
+    </nav>
+  );
+};
 
 const Skills = () => (
   <section className="py-24 border-t border-outline-variant/10" id="skills">
@@ -137,11 +156,36 @@ const Portfolio = () => {
   const limit = 6;
 
   const [categoriasDB, setCategoriasDB] = useState([]);
+  
+  // ✨ NUEVO: Estado para el ScrollSpy
+  const [activeSection, setActiveSection] = useState('home');
 
   const [perfil, setPerfil] = useState({
     nombre: 'Mathias Villazón', titulo: 'Estudiante de Ingeniería de Sistemas', 
     descripcion: 'Cargando información...', email: '', github_url: '', linkedin_url: '', redes_sociales: '[]'
   });
+
+  // ✨ NUEVO: Efecto que escucha el scroll de la ventana
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ['home', 'skills', 'projects', 'contact'];
+      const scrollPosition = window.scrollY + 300; 
+
+      for (const section of sections) {
+        const element = document.getElementById(section);
+        if (element) {
+          const offsetTop = element.offsetTop;
+          const offsetHeight = element.offsetHeight;
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            setActiveSection(section);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const gaId = import.meta.env.VITE_GA_TRACKING_ID;
@@ -168,7 +212,6 @@ const Portfolio = () => {
   const cargarProyectos = (paginaActual, categoria, resetData = false) => {
     if(!resetData) setIsLoadingMore(true);
     
-    // TRUCO: Pedimos limit + 1 para saber si hay más páginas
     let url = `/proyectos?skip=${paginaActual * limit}&limit=${limit + 1}`;
     if(categoria !== 'TODOS') url += `&categoria=${categoria}`;
 
@@ -203,7 +246,6 @@ const Portfolio = () => {
     ReactGA.event({ category: "Projects", action: "View_Project_Details", label: proj.titulo });
   };
 
-  // --- LÓGICA DEL LIGHTBOX (NAVEGACIÓN POR RATÓN Y TECLADO) ---
   const nextImage = useCallback((e) => {
     if (e) e.stopPropagation();
     setLightbox(prev => ({ ...prev, index: (prev.index + 1) % prev.images.length }));
@@ -225,7 +267,6 @@ const Portfolio = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightbox.isOpen, nextImage, prevImage]);
-  // -------------------------------------------------------------
 
   const redesExtra = JSON.parse(perfil.redes_sociales || '[]');
 
@@ -243,7 +284,8 @@ const Portfolio = () => {
       <div className="fixed top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-primary-container/5 blur-[120px] pointer-events-none z-0"></div>
       <div className="fixed bottom-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-secondary/5 blur-[120px] pointer-events-none z-0"></div>
 
-      <Navbar perfil={perfil} />
+      {/* Pasamos el estado de la sección activa al Navbar */}
+      <Navbar perfil={perfil} activeSection={activeSection} />
       
       <main className="px-6 md:px-12 max-w-7xl mx-auto relative z-10">
         
@@ -301,14 +343,10 @@ const Portfolio = () => {
             </div>
           </div>
 
-          {/* ✨ NUEVO: IMAGEN DE PERFIL CON CONTORNO INTELIGENTE (DROP-SHADOW) ✨ */}
           {perfil.imagen_url && (
             <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 relative group flex-shrink-0 mx-auto md:mx-0 order-1 md:order-2 mt-8 md:mt-0 flex items-center justify-center">
-              
-              {/* Círculo de luz de fondo sutil */}
               <div className="absolute inset-0 bg-primary-container/5 rounded-full blur-3xl group-hover:bg-primary-container/20 transition-colors duration-700"></div>
               
-              {/* Imagen con Drop-Shadow Inteligente para PNGs sin fondo */}
               <img 
                 src={perfil.imagen_url} 
                 alt={perfil.nombre} 
@@ -318,7 +356,6 @@ const Portfolio = () => {
                 }}
               />
               
-              {/* Anillo tecnológico flotando detrás */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] border border-primary-container/20 rounded-full animate-[spin_10s_linear_infinite] opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-0"></div>
             </div>
           )}
@@ -346,15 +383,20 @@ const Portfolio = () => {
 
           </div>
           
+          {/* ✨ Animación más suave con mode="popLayout" y animación vertical en Y ✨ */}
           <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {proyectos.map((proj) => {
                 const imagenes = getImagenes(proj.imagen_url);
                 return (
                   <motion.div 
-                    layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.3 }}
+                    layout 
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    exit={{ opacity: 0, scale: 0.95 }} 
+                    transition={{ duration: 0.4, ease: "easeOut" }}
                     key={proj.id} onClick={() => abrirProyecto(proj)}
-                    className="group relative overflow-hidden rounded-xl glass-panel transition-all hover:-translate-y-2 cursor-pointer flex flex-col h-full border border-outline-variant/20 hover:border-primary-container/40"
+                    className="group relative overflow-hidden rounded-xl glass-panel transition-all hover:-translate-y-2 cursor-pointer flex flex-col h-full border border-outline-variant/20 hover:border-primary-container/40 shadow-lg hover:shadow-[0_10px_30px_rgba(0,240,255,0.1)]"
                   >
                     <div className="relative bg-surface-container-low h-full flex flex-col">
                       {imagenes.length > 0 ? (
@@ -409,7 +451,6 @@ const Portfolio = () => {
         <Contact perfil={perfil} />
       </main>
       
-      {/* MODAL DE DETALLES DEL PROYECTO */}
       <AnimatePresence>
         {proyectoActivo && (
           <motion.div 
@@ -438,7 +479,6 @@ const Portfolio = () => {
                 <div className="space-y-4">
                   {getImagenes(proyectoActivo.imagen_url).length > 0 && (
                     <>
-                      {/* IMAGEN PRINCIPAL */}
                       <div 
                         className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg bg-surface-container-lowest cursor-zoom-in group relative"
                         onClick={() => setLightbox({ isOpen: true, index: 0, images: getImagenes(proyectoActivo.imagen_url) })}
@@ -449,7 +489,6 @@ const Portfolio = () => {
                          </div>
                       </div>
                       
-                      {/* MINIATURAS */}
                       {getImagenes(proyectoActivo.imagen_url).length > 1 && (
                         <div className="grid grid-cols-2 gap-4">
                           {getImagenes(proyectoActivo.imagen_url).slice(1).map((imgUrl, idx) => (
@@ -515,7 +554,6 @@ const Portfolio = () => {
         )}
       </AnimatePresence>
 
-      {/* ✨ LIGHTBOX AVANZADO (Teclado, Carrusel y Zoom por Mouse) ✨ */}
       <AnimatePresence>
         {lightbox.isOpen && (
           <motion.div
@@ -533,7 +571,6 @@ const Portfolio = () => {
               </button>
             )}
             
-            {/* Contenedor Lupa (Zoom on hover) */}
             <motion.div 
               key={lightbox.index} 
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}
@@ -575,8 +612,9 @@ const Portfolio = () => {
       </footer>
     </div>
   );
-}
+};
 
+// Exportación correcta (Soluciona el error del Build)
 export default function App() {
   useEffect(() => {
     const handleContextMenu = (e) => e.preventDefault();
