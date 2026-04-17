@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Code, Smartphone, Database, Server, ExternalLink, X, FileText, Send, CheckCircle, RefreshCw, Link as LinkIcon, ZoomIn, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -127,7 +127,6 @@ const Portfolio = () => {
   const [proyectos, setProyectos] = useState([]);
   const [proyectoActivo, setProyectoActivo] = useState(null);
   
-  // NUEVO: Estado del Lightbox con Carrusel
   const [lightbox, setLightbox] = useState({ isOpen: false, index: 0, images: [] });
   
   const [isLoading, setIsLoading] = useState(true);
@@ -155,7 +154,6 @@ const Portfolio = () => {
   useEffect(() => {
     Promise.all([
       api.get('/perfil').catch(() => ({data: perfil})),
-      // Si la BD aún no devuelve categorías dinámicas, dejamos un fallback temporal.
       api.get('/categorias').catch(() => ({data: ['MOBILE', 'WEB_APP', 'BACKEND', 'DESKTOP']}))
     ]).then(([resPerfil, resCat]) => {
       if(resPerfil.data.nombre) setPerfil(resPerfil.data);
@@ -170,16 +168,14 @@ const Portfolio = () => {
   const cargarProyectos = (paginaActual, categoria, resetData = false) => {
     if(!resetData) setIsLoadingMore(true);
     
-    // EL TRUCO: Pedimos limit + 1 para saber si existe una "página siguiente" oculta
+    // TRUCO: Pedimos limit + 1 para saber si hay más páginas
     let url = `/proyectos?skip=${paginaActual * limit}&limit=${limit + 1}`;
     if(categoria !== 'TODOS') url += `&categoria=${categoria}`;
 
     api.get(url).then(res => {
-      // Si trajo más del límite, sí hay más proyectos. Si no, ya llegamos al final.
       const hayMasProyectos = res.data.length > limit;
       setHasMore(hayMasProyectos);
       
-      // Cortamos el proyecto extra para mostrar exactamente el límite (6)
       const dataParaMostrar = hayMasProyectos ? res.data.slice(0, limit) : res.data;
 
       if(resetData) setProyectos(dataParaMostrar);
@@ -207,16 +203,29 @@ const Portfolio = () => {
     ReactGA.event({ category: "Projects", action: "View_Project_Details", label: proj.titulo });
   };
 
-  // Funciones de navegación del Lightbox
-  const nextImage = (e) => {
-    e.stopPropagation();
+  // --- LÓGICA DEL LIGHTBOX (NAVEGACIÓN POR RATÓN Y TECLADO) ---
+  const nextImage = useCallback((e) => {
+    if (e) e.stopPropagation();
     setLightbox(prev => ({ ...prev, index: (prev.index + 1) % prev.images.length }));
-  };
+  }, []);
 
-  const prevImage = (e) => {
-    e.stopPropagation();
+  const prevImage = useCallback((e) => {
+    if (e) e.stopPropagation();
     setLightbox(prev => ({ ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length }));
-  };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!lightbox.isOpen) return;
+      if (e.key === 'ArrowRight') nextImage();
+      if (e.key === 'ArrowLeft') prevImage();
+      if (e.key === 'Escape') setLightbox({ isOpen: false, index: 0, images: [] });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightbox.isOpen, nextImage, prevImage]);
+  // -------------------------------------------------------------
 
   const redesExtra = JSON.parse(perfil.redes_sociales || '[]');
 
@@ -292,16 +301,25 @@ const Portfolio = () => {
             </div>
           </div>
 
+          {/* ✨ NUEVO: IMAGEN DE PERFIL CON CONTORNO INTELIGENTE (DROP-SHADOW) ✨ */}
           {perfil.imagen_url && (
-            <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 relative group flex-shrink-0 mx-auto md:mx-0 order-1 md:order-2 mt-8 md:mt-0">
-              {/* Anillos Cybernéticos Tecnológicos */}
-              <div className="absolute inset-0 border-2 border-primary-container/30 rounded-full md:rounded-2xl group-hover:border-primary-container/80 transition-colors duration-700 shadow-[0_0_20px_rgba(0,240,255,0.1)] group-hover:shadow-[0_0_40px_rgba(0,240,255,0.4)] z-20 pointer-events-none"></div>
-              <div className="absolute inset-[-15px] border border-secondary/30 rounded-full md:rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 scale-95 group-hover:scale-100 z-0"></div>
+            <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 relative group flex-shrink-0 mx-auto md:mx-0 order-1 md:order-2 mt-8 md:mt-0 flex items-center justify-center">
               
-              <div className="absolute inset-0 bg-primary-container/10 rounded-full md:rounded-2xl blur-3xl group-hover:bg-primary-container/30 transition-colors duration-700"></div>
+              {/* Círculo de luz de fondo sutil */}
+              <div className="absolute inset-0 bg-primary-container/5 rounded-full blur-3xl group-hover:bg-primary-container/20 transition-colors duration-700"></div>
               
-              {/* Imagen siempre a color, con un ligero zoom elegante al pasar el mouse */}
-              <img src={perfil.imagen_url} alt={perfil.nombre} className="w-full h-full object-cover rounded-full md:rounded-2xl relative z-10 transition-transform duration-700 group-hover:scale-[1.02]" />
+              {/* Imagen con Drop-Shadow Inteligente para PNGs sin fondo */}
+              <img 
+                src={perfil.imagen_url} 
+                alt={perfil.nombre} 
+                className="w-full h-full object-contain relative z-10 transition-transform duration-700 group-hover:scale-105" 
+                style={{
+                  filter: 'drop-shadow(0px 0px 15px rgba(0, 240, 255, 0.4))'
+                }}
+              />
+              
+              {/* Anillo tecnológico flotando detrás */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] border border-primary-container/20 rounded-full animate-[spin_10s_linear_infinite] opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-0"></div>
             </div>
           )}
         </motion.section>
@@ -353,7 +371,6 @@ const Portfolio = () => {
                         <p className="text-on-surface-variant text-sm mb-6 line-clamp-3 font-light leading-relaxed">{proj.descripcion}</p>
                         <div className="mt-auto">
                           
-                          {/* NUEVO: Soporte para Múltiples Categorías en las tarjetas */}
                           <div className="flex flex-wrap gap-2 mb-6">
                             {proj.categoria.split(',').map((cat, i) => (
                               <span key={i} className="text-[10px] uppercase tracking-wider bg-surface-container-highest px-2 py-1 rounded-sm text-primary-container font-mono border border-primary-container/20">
@@ -407,8 +424,6 @@ const Portfolio = () => {
             >
               <button onClick={() => setProyectoActivo(null)} className="absolute top-6 right-6 z-20 text-on-surface-variant hover:text-primary-container transition-colors p-2"><X size={28} /></button>
               <section className="mb-10">
-                
-                {/* NUEVO: Soporte para Múltiples Categorías en el Modal */}
                 <div className="flex flex-wrap gap-2 mb-2">
                    {proyectoActivo.categoria.split(',').map((cat, i) => (
                        <span key={i} className="text-xs font-bold tracking-widest text-primary-container uppercase block">
@@ -416,7 +431,6 @@ const Portfolio = () => {
                        </span>
                    ))}
                 </div>
-
                 <h2 className="text-3xl md:text-5xl font-headline font-bold text-on-surface tracking-tighter pr-12">{proyectoActivo.titulo}</h2>
               </section>
               
@@ -424,7 +438,7 @@ const Portfolio = () => {
                 <div className="space-y-4">
                   {getImagenes(proyectoActivo.imagen_url).length > 0 && (
                     <>
-                      {/* IMAGEN PRINCIPAL (Abre el Lightbox en el índice 0) */}
+                      {/* IMAGEN PRINCIPAL */}
                       <div 
                         className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-lg bg-surface-container-lowest cursor-zoom-in group relative"
                         onClick={() => setLightbox({ isOpen: true, index: 0, images: getImagenes(proyectoActivo.imagen_url) })}
@@ -435,7 +449,7 @@ const Portfolio = () => {
                          </div>
                       </div>
                       
-                      {/* MINIATURAS ADICIONALES (Abre el Lightbox en el índice correspondiente) */}
+                      {/* MINIATURAS */}
                       {getImagenes(proyectoActivo.imagen_url).length > 1 && (
                         <div className="grid grid-cols-2 gap-4">
                           {getImagenes(proyectoActivo.imagen_url).slice(1).map((imgUrl, idx) => (
@@ -501,49 +515,50 @@ const Portfolio = () => {
         )}
       </AnimatePresence>
 
-      {/* NUEVO: LIGHTBOX CON CARRUSEL INTEGRADO */}
+      {/* ✨ LIGHTBOX AVANZADO (Teclado, Carrusel y Zoom por Mouse) ✨ */}
       <AnimatePresence>
         {lightbox.isOpen && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-[#0c0e12]/95 backdrop-blur-md flex items-center justify-center p-4 select-none"
+            className="fixed inset-0 z-[100] bg-[#0c0e12]/95 backdrop-blur-md flex items-center justify-center p-4 md:p-10 select-none"
             onClick={() => setLightbox({ isOpen: false, index: 0, images: [] })}
           >
-            {/* Cerrar */}
             <button className="absolute top-6 right-6 z-[110] text-white/70 hover:text-[#00F0FF] transition-colors bg-black/40 p-3 rounded-full backdrop-blur-sm">
               <X size={28} />
             </button>
 
-            {/* Anterior */}
             {lightbox.images.length > 1 && (
-              <button 
-                onClick={prevImage} 
-                className="absolute left-4 md:left-10 z-[110] text-white/70 hover:text-[#00F0FF] bg-black/40 p-4 rounded-full transition-all hover:scale-110"
-              >
+              <button onClick={prevImage} className="absolute left-4 md:left-10 z-[110] text-white/70 hover:text-[#00F0FF] bg-black/40 p-4 rounded-full transition-all hover:scale-110">
                 <ChevronLeft size={36} />
               </button>
             )}
             
-            <motion.img
-              key={lightbox.index} // Forza la re-animación al cambiar de imagen
-              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}
-              src={lightbox.images[lightbox.index]}
-              alt="Vista ampliada"
-              className="w-full max-w-5xl max-h-[90vh] object-contain shadow-[0_0_50px_rgba(0,0,0,0.5)] cursor-default"
+            {/* Contenedor Lupa (Zoom on hover) */}
+            <motion.div 
+              key={lightbox.index} 
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}
+              className="relative w-full max-w-6xl h-[80vh] md:h-[90vh] overflow-hidden rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] group cursor-zoom-in"
               onClick={(e) => e.stopPropagation()} 
-            />
+              onMouseMove={(e) => {
+                const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+                const x = ((e.clientX - left) / width) * 100;
+                const y = ((e.clientY - top) / height) * 100;
+                e.currentTarget.style.transformOrigin = `${x}% ${y}%`;
+              }}
+            >
+              <img
+                src={lightbox.images[lightbox.index]}
+                alt="Vista ampliada"
+                className="w-full h-full object-contain bg-black/20 transition-transform duration-200 group-hover:scale-[2] pointer-events-none"
+              />
+            </motion.div>
 
-            {/* Siguiente */}
             {lightbox.images.length > 1 && (
-              <button 
-                onClick={nextImage} 
-                className="absolute right-4 md:right-10 z-[110] text-white/70 hover:text-[#00F0FF] bg-black/40 p-4 rounded-full transition-all hover:scale-110"
-              >
+              <button onClick={nextImage} className="absolute right-4 md:right-10 z-[110] text-white/70 hover:text-[#00F0FF] bg-black/40 p-4 rounded-full transition-all hover:scale-110">
                 <ChevronRight size={36} />
               </button>
             )}
 
-            {/* Contador de Imágenes */}
             {lightbox.images.length > 1 && (
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white bg-black/50 px-4 py-2 rounded-full tracking-widest text-sm font-mono backdrop-blur-sm">
                 {lightbox.index + 1} / {lightbox.images.length}
@@ -559,31 +574,5 @@ const Portfolio = () => {
         </p>
       </footer>
     </div>
-  );
-};
-
-export default function App() {
-  useEffect(() => {
-    const handleContextMenu = (e) => e.preventDefault();
-    const handleKeyDown = (e) => {
-      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.shiftKey && e.key === 'J') || (e.ctrlKey && e.key === 'U') || (e.ctrlKey && e.key === 'S')) {
-        e.preventDefault();
-      }
-    };
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Portfolio />} />
-        <Route path="/admin" element={<AdminPanel />} />
-      </Routes>
-    </BrowserRouter>
   );
 }
