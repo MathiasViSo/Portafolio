@@ -169,13 +169,22 @@ const Portfolio = () => {
 
   const cargarProyectos = (paginaActual, categoria, resetData = false) => {
     if(!resetData) setIsLoadingMore(true);
-    let url = `/proyectos?skip=${paginaActual * limit}&limit=${limit}`;
+    
+    // EL TRUCO: Pedimos limit + 1 para saber si existe una "página siguiente" oculta
+    let url = `/proyectos?skip=${paginaActual * limit}&limit=${limit + 1}`;
     if(categoria !== 'TODOS') url += `&categoria=${categoria}`;
 
     api.get(url).then(res => {
-      setHasMore(res.data.length >= limit);
-      if(resetData) setProyectos(res.data);
-      else setProyectos(prev => [...prev, ...res.data]);
+      // Si trajo más del límite, sí hay más proyectos. Si no, ya llegamos al final.
+      const hayMasProyectos = res.data.length > limit;
+      setHasMore(hayMasProyectos);
+      
+      // Cortamos el proyecto extra para mostrar exactamente el límite (6)
+      const dataParaMostrar = hayMasProyectos ? res.data.slice(0, limit) : res.data;
+
+      if(resetData) setProyectos(dataParaMostrar);
+      else setProyectos(prev => [...prev, ...dataParaMostrar]);
+      
       setIsLoading(false); setIsLoadingMore(false);
     }).catch(() => { setIsLoading(false); setIsLoadingMore(false); });
   };
@@ -285,8 +294,14 @@ const Portfolio = () => {
 
           {perfil.imagen_url && (
             <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 relative group flex-shrink-0 mx-auto md:mx-0 order-1 md:order-2 mt-8 md:mt-0">
-              <div className="absolute inset-0 bg-primary-container/20 rounded-full md:rounded-2xl blur-3xl group-hover:bg-primary-container/40 transition-colors duration-700"></div>
-              <img src={perfil.imagen_url} alt={perfil.nombre} className="w-full h-full object-cover rounded-full md:rounded-2xl border-2 md:border border-primary-container/50 md:border-outline-variant/30 md:grayscale hover:grayscale-0 transition-all duration-500 relative z-10 shadow-2xl" />
+              {/* Anillos Cybernéticos Tecnológicos */}
+              <div className="absolute inset-0 border-2 border-primary-container/30 rounded-full md:rounded-2xl group-hover:border-primary-container/80 transition-colors duration-700 shadow-[0_0_20px_rgba(0,240,255,0.1)] group-hover:shadow-[0_0_40px_rgba(0,240,255,0.4)] z-20 pointer-events-none"></div>
+              <div className="absolute inset-[-15px] border border-secondary/30 rounded-full md:rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 scale-95 group-hover:scale-100 z-0"></div>
+              
+              <div className="absolute inset-0 bg-primary-container/10 rounded-full md:rounded-2xl blur-3xl group-hover:bg-primary-container/30 transition-colors duration-700"></div>
+              
+              {/* Imagen siempre a color, con un ligero zoom elegante al pasar el mouse */}
+              <img src={perfil.imagen_url} alt={perfil.nombre} className="w-full h-full object-cover rounded-full md:rounded-2xl relative z-10 transition-transform duration-700 group-hover:scale-[1.02]" />
             </div>
           )}
         </motion.section>
