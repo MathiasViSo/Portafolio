@@ -278,3 +278,7 @@ def eliminar_mensaje(id: int, db: Session = Depends(get_db), token: str = Depend
     db.delete(mensaje)
     db.commit()
     return {"status": "success"}
+
+@app.get("/api/v1/ping")
+def ping_server():
+    return {"status": "ok", "message": "Servidor despierto"}
