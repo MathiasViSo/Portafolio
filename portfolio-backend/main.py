@@ -280,5 +280,10 @@ def eliminar_mensaje(id: int, db: Session = Depends(get_db), token: str = Depend
     return {"status": "success"}
 
 @app.get("/api/v1/ping")
-def ping_server():
-    return {"status": "ok", "message": "Servidor despierto"}
+def ping_server(db: Session = Depends(get_db)):
+    try:
+        # Hacemos una consulta ultra ligera a la BD para mantener a Supabase despierto
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "message": "Servidor y Base de Datos despiertos"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
